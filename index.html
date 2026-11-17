@@ -298,6 +298,17 @@ img{pointer-events:none;-webkit-user-drag:none;}
 .arena.boss-mode{box-shadow:inset 0 0 100px rgba(255,60,60,.22), inset 0 0 40px rgba(255,211,78,.12)!important;}
 .tgt.drift-paused{ /* keep */ }
 
+
+.tgt .ship-spr{
+  position:relative; z-index:2; width:72px; height:66px; margin:2px auto 0;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,.45));
+  pointer-events:none; display:block;
+}
+.tgt.boss .ship-spr{ width:92px; height:84px; }
+.tgt .hull{ opacity:.35; } /* keep faint hull under pixel ship */
+.tgt::before{ display:none !important; } /* hide emoji icon */
+
 </style>
 </head>
 <body oncontextmenu="return false;">
@@ -328,7 +339,7 @@ img{pointer-events:none;-webkit-user-drag:none;}
         <div class="info" id="voice-info">語音：未測</div>
       </div>
     </div>
-    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1.5-stg</div>
+    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1.5.1-pxl-a</div>
   </section>
 
   <!-- ID -->
@@ -466,6 +477,8 @@ window.SANFA_DATA = {"version": 1, "title": "三法守護戰", "stages": [{"id":
 (function(){
 'use strict';
 const DATA = window.SANFA_DATA;
+const ENEMY_SPR = {"enemy_const": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAUCAMAAAC+oj0CAAAAHlBMVEUAAAAaECD/a2vGKCj/006xu8v/9+l3gId6EhhCMywTrW15AAAAAXRSTlMAQObYZgAAAHhJREFUeNqFzwsKAyEMBFAnH6fe/8IbU7HqCjUIk0eIWMq/A1xVBFe9eOrLIarSL05N3ryrdbbVU01dtC6eG8zozlrnnlRV0pxGDh8aXmOaGcOTP1F9NzNM/s780rpl8vaminPRdETXWji2/0S1YtYc++9xhNEe4QEwMgLt97fMBQAAAABJRU5ErkJggg==", "enemy_basic": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAUCAMAAAC+oj0CAAAAKlBMVEUAAAAaECB+tv93g5QVZcD/9uixvdGxvdJ3g5ZofZYNOnqoutJLW3VCOERdQJnzAAAAAXRSTlMAQObYZgAAAIJJREFUeNqFz+sKBCEIBeC8VLazvf/r7kkXqplgFOT4/RBM6a2IjspMRz2468OJRZlVdoeKsA/aNUspGIu7Bi9OuDmgBms4VOFiuVo2wTLcFW7G1diahjt/0K1ezb4Ik70u1hZpuaLjnanTucii7oStdzjp+g+6p5x7of17uoX/egs/kfMDh3Y06VsAAAAASUVORK5CYII=", "enemy_nsl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAUCAMAAAC+oj0CAAAAHlBMVEUAAAAaECBX8KIufTL/006xu8v/9+l3gIcPShxCMywd2DypAAAAAXRSTlMAQObYZgAAAHlJREFUeNqFzwEKRCEIBNDUMbf7X/jbbLTVDzYJ9CEDlvLviVxVVa56cerLRc20fzmVvHlXdMbqVJir1cWZAIR71DpzqGYR8EDE8KHpNbeDbTr5k2UZEmwmc9vxzThS+vbUn6uvSpecWkuX7Z6sVoDmsl8vRzPGo3kARi0DFJZDbO0AAAAASUVORK5CYII="};
+
 const SAVE_KEY = 'sanfa-guard-v1';
 const IDS = [
   {id:'star', emo:'⭐', name:'小星星'},
@@ -1084,6 +1097,11 @@ function startStage(id){
   startLoop();
 }
 
+function themeSpr(theme){
+  if(theme==='basic') return ENEMY_SPR.enemy_basic;
+  if(theme==='nsl') return ENEMY_SPR.enemy_nsl;
+  return ENEMY_SPR.enemy_const;
+}
 function themeIcon(theme, i){
   if(theme==='basic') return ['🌺','🌸','🌼'][i%3];
   if(theme==='nsl') return ['🛡️','⚔️','🚨'][i%3];
@@ -1128,7 +1146,9 @@ function renderQuestion(){
     el.dataset.icon = themeIcon(th, i);
     el.setAttribute('aria-label', letter + ' ' + e.text);
     const tag = isBossWave() ? 'BOSS 部件' : '入侵體';
+    const spr = themeSpr(th);
     el.innerHTML = '<span class="hull"></span><span class="eye"></span><span class="fins"></span>'
+      + '<img class="ship-spr" alt="" draggable="false" src="'+spr+'"/>'
       + '<span class="ring"></span><span class="reticle"></span>'
       + '<span class="tag">'+tag+'</span><span class="badge">'+letter+'</span><span class="otxt"></span>';
     el.querySelector('.otxt').textContent = e.text;
