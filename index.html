@@ -118,6 +118,9 @@ img{pointer-events:none;-webkit-user-drag:none;}
 
 /* review mode */
 #sc-review{background:linear-gradient(180deg,#0e2248,#0b1b3a);}
+#sc-review.screen{display:none;flex-direction:column;}
+#sc-review.screen.on{display:flex;}
+.rev-card{min-height:180px;}
 .rev-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;}
 .rev-tabs button{flex:1;min-width:72px;padding:10px 8px;border-radius:14px;font-weight:800;font-size:14px;
   background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.12);}
@@ -212,7 +215,7 @@ img{pointer-events:none;-webkit-user-drag:none;}
         <div class="info" id="voice-info">語音：未測</div>
       </div>
     </div>
-    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1.3-review</div>
+    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1.3.1-review-fix</div>
   </section>
 
   <!-- ID -->
@@ -271,6 +274,41 @@ img{pointer-events:none;-webkit-user-drag:none;}
       <button type="button" data-k="B">B</button>
       <button type="button" data-k="C">C</button>
       <button type="button" class="speak" id="btn-speak" title="朗讀">🔊</button>
+    </div>
+  </section>
+
+
+  <!-- REVIEW -->
+  <section id="sc-review" class="screen">
+    <div class="topbar">
+      <img class="logo" src="assets/puichi-logo.png" alt="" onerror="this.style.display='none'" />
+      <div class="titles">
+        <h1>溫習模式</h1>
+        <p>無射擊 · 慢慢學</p>
+      </div>
+      <button class="btn ghost" id="btn-rev-home" type="button" style="padding:8px 12px;font-size:14px">主頁</button>
+    </div>
+    <div class="rev-tabs" id="rev-tabs">
+      <button type="button" data-part="all" class="on">全部</button>
+      <button type="button" data-part="const">憲法</button>
+      <button type="button" data-part="basic">基本法</button>
+      <button type="button" data-part="nsl">國安法</button>
+    </div>
+    <div class="play-hud" style="margin-bottom:6px">
+      <span class="stat" id="rev-prog">1/100</span>
+      <button type="button" class="toggle on hud-toggle" id="tog-auto-speak-rev" aria-pressed="true"><span class="dot"></span>讀題 ON</button>
+      <button class="btn ghost" id="btn-rev-speak" type="button" style="padding:8px 12px;font-size:16px">🔊</button>
+    </div>
+    <div class="rev-card">
+      <div class="qid" id="rev-qid">題 1</div>
+      <div class="rev-q" id="rev-q">題目</div>
+      <div class="rev-opts" id="rev-opts"></div>
+      <div class="rev-fb" id="rev-fb"></div>
+    </div>
+    <div class="rev-nav" style="margin-top:10px">
+      <button class="btn ghost" id="btn-rev-prev" type="button">上一題</button>
+      <button class="btn" id="btn-rev-reveal" type="button">睇答案</button>
+      <button class="btn good" id="btn-rev-next" type="button">下一題</button>
     </div>
   </section>
 
@@ -1173,6 +1211,7 @@ function renderReview(){
   $('#rev-fb').textContent = '';
   $('#rev-fb').className = 'rev-fb';
   const box = $('#rev-opts');
+  if(!box){ console.warn('rev-opts missing'); return; }
   box.innerHTML = '';
   ['A','B','C'].forEach(function(L){
     const b = document.createElement('button');
@@ -1251,9 +1290,9 @@ function wireReview(){
   if(sp) sp.onclick = function(){ const t=revSpeakText(); if(t) speak(t); };
   const tr = $('#tog-auto-speak-rev');
   if(tr) tr.onclick = toggleAutoSpeak;
-  $('#btn-rev-prev').onclick = function(){ revNext(-1); };
-  $('#btn-rev-next').onclick = function(){ revNext(1); };
-  $('#btn-rev-reveal').onclick = function(){ revReveal(); };
+  const bp = $('#btn-rev-prev'); if(bp) bp.onclick = function(){ revNext(-1); };
+  const bn = $('#btn-rev-next'); if(bn) bn.onclick = function(){ revNext(1); };
+  const bv = $('#btn-rev-reveal'); if(bv) bv.onclick = function(){ revReveal(); };
   // keys in review
   window.addEventListener('keydown', function(e){
     if(state.screen!=='review') return;
