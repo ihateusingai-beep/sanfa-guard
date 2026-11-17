@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-HK">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
@@ -56,9 +56,21 @@ img{pointer-events:none;-webkit-user-drag:none;}
 .stage.theme-nsl{background:linear-gradient(135deg,rgba(46,125,50,.4),rgba(255,255,255,.05));}
 .play-hud{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;}
 .play-hud .stat{background:rgba(0,0,0,.25);border-radius:12px;padding:6px 10px;font-weight:800;font-size:14px;}
-.qbox{background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:12px 14px;margin-bottom:10px;}
+.qbox{background:rgba(0,0,0,.28);/*q*/border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:12px 14px;margin-bottom:10px;}
 .qbox .qid{font-size:12px;color:var(--muted);font-weight:700;}
 .qbox .qtext{font-size:clamp(18px,4.6vw,28px);font-weight:900;line-height:1.35;margin-top:4px;}
+
+.qbox{position:relative;}
+.qbox .qrow{display:flex;align-items:flex-start;gap:10px;}
+.qbox .qrow .qtext{flex:1;min-width:0;}
+.btn-speak-q{flex:0 0 auto;width:64px;height:64px;border-radius:18px;font-size:28px;font-weight:900;
+  background:linear-gradient(180deg,#7eb6ff,#3d7aef);color:#fff;box-shadow:0 5px 0 #1e4fa8;border:none;}
+.btn-speak-q:active{transform:translateY(3px);box-shadow:0 2px 0 #1e4fa8;}
+.btn-speak-q.talk{outline:3px solid var(--accent);}
+.vk .speak{background:linear-gradient(180deg,#7eb6ff,#3d7aef)!important;border-color:#3d7aef!important;font-size:24px!important;}
+.voice-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin-top:8px;}
+.voice-bar .info{font-size:12px;color:var(--muted);max-width:100%;text-align:center;}
+
 .arena{position:relative;flex:1;min-height:0;border-radius:22px;overflow:hidden;background:
   radial-gradient(circle at 50% 120%, rgba(255,211,78,.15), transparent 50%),
   linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.2));
@@ -136,8 +148,12 @@ img{pointer-events:none;-webkit-user-drag:none;}
       </div>
       <button class="btn wide" id="btn-start" type="button">開始</button>
       <button class="btn ghost wide" id="btn-continue" type="button" style="display:none">繼續上次</button>
+      <div class="voice-bar">
+        <button class="btn ghost" id="btn-voice-test" type="button" style="padding:10px 14px;font-size:15px">🔊 試語音</button>
+        <div class="info" id="voice-info">語音：未測</div>
+      </div>
     </div>
-    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1</div>
+    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1.1-tts</div>
   </section>
 
   <!-- ID -->
@@ -296,7 +312,7 @@ function applySave(s){
 function show(id){
   $$('.screen').forEach(el=>el.classList.toggle('on', el.id==='sc-'+id));
   state.screen = id;
-  if(id!=='play') stopLoop();
+  if(id!=='play'){ stopLoop(); stopSpeak(); }
 }
 
 function toast(msg){
@@ -344,15 +360,80 @@ function fanfare(){
   });
 }
 
-function speak(text){
+/* TTS — buy-xx / Math Guardian 同級：zh-HK 優先 + voiceschanged + 手動大🔊 + 出題自動讀 */
+let voices = [];
+let ttsRate = 0.9;
+function loadVoices(){
+  try{ voices = window.speechSynthesis ? (speechSynthesis.getVoices() || []) : []; }catch(e){ voices = []; }
+}
+loadVoices();
+if(typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined){
+  speechSynthesis.onvoiceschanged = loadVoices;
+}
+function pickVoice(){
+  const v = voices || [];
+  return v.find(x=>/zh-HK|yue.*HK|hong\s*kong/i.test((x.lang||'')+' '+(x.name||'')))
+    || v.find(x=>/yue|cantonese|廣東|香港/i.test((x.lang||'')+' '+(x.name||'')))
+    || v.find(x=>/zh-TW|zh_TW/i.test(x.lang||''))
+    || v.find(x=>/zh-CN|zh_CN|chinese/i.test((x.lang||'')+' '+(x.name||'')))
+    || null;
+}
+function stopSpeak(){
+  try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){}
+  const bq = $('#btn-speak-q'); if(bq) bq.classList.remove('talk');
+  const bs = $('#btn-speak'); if(bs) bs.classList.remove('talk');
+}
+function speak(text, opts){
+  opts = opts || {};
+  if(!text) return;
   try{
-    if(!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'zh-HK';
-    u.rate = 0.92;
-    window.speechSynthesis.speak(u);
+    if(!window.speechSynthesis){ toast('呢部機冇語音'); return; }
+    loadVoices();
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(String(text));
+    const v = pickVoice();
+    u.lang = (v && v.lang) || 'zh-HK';
+    u.rate = opts.rate != null ? opts.rate : ttsRate;
+    if(v) u.voice = v;
+    u.onstart = function(){
+      const bq = $('#btn-speak-q'); if(bq) bq.classList.add('talk');
+      const bs = $('#btn-speak'); if(bs) bs.classList.add('talk');
+    };
+    u.onend = u.onerror = function(){
+      const bq = $('#btn-speak-q'); if(bq) bq.classList.remove('talk');
+      const bs = $('#btn-speak'); if(bs) bs.classList.remove('talk');
+    };
+    speechSynthesis.speak(u);
   }catch(e){}
+}
+function questionSpeakText(){
+  const q = currentQ();
+  if(!q) return '';
+  const parts = [q.q];
+  $$('#targets .tgt').forEach(function(t){
+    const lab = t.querySelector('.otxt');
+    parts.push(t.dataset.k + '，' + (lab ? lab.textContent : ''));
+  });
+  return parts.join('。');
+}
+function autoSpeakQuestion(){
+  // 出題自動讀（SEN 聽題）；可再撳🔊重讀
+  const t = questionSpeakText();
+  if(!t) return;
+  setTimeout(function(){ speak(t); }, 220);
+}
+function voiceSelfTest(){
+  loadVoices();
+  const v = pickVoice();
+  const info = $('#voice-info');
+  const zh = (voices||[]).filter(x => /zh|yue/i.test(x.lang||''));
+  let msg;
+  if(v) msg = '✅ 用緊：' + v.name + '（' + v.lang + '）';
+  else if(zh.length) msg = '⚠️ 搵唔到港式，會用：' + zh[0].name;
+  else msg = '❌ 呢部裝置冇中文語音';
+  if(info) info.textContent = msg;
+  toast(msg);
+  speak('三法守護戰。請揀正確答案。');
 }
 
 function qById(id){
@@ -522,6 +603,7 @@ function renderQuestion(){
     if(mapLetter[L]===q.ans) state.ansDisplay = L;
   }
   state.locked = false;
+  autoSpeakQuestion();
 }
 
 function tryAnswer(displayLetter, srcKey, el){
@@ -540,6 +622,7 @@ function tryAnswer(displayLetter, srcKey, el){
     beep(true);
     burst(el, state.streak>=3?'💥✨':'✨');
     toast(state.streak>=3?`連對 ${state.streak}！`:'答對！');
+    speak(state.streak>=3?('啱喇！連對'+state.streak):'啱喇');
     setTimeout(()=>{
       robot.classList.remove('happy');
       nextQ();
@@ -552,6 +635,7 @@ function tryAnswer(displayLetter, srcKey, el){
     state.totalWrong += 1;
     beep(false);
     toast('再試！');
+    speak('再試啦');
     $('#hud-streak').textContent = `🔥 0`;
     $('#hud-wrong').textContent = `錯 ${state.stageWrong}`;
     setTimeout(()=>{
@@ -582,6 +666,7 @@ function nextQ(){
     $('#clear-msg').textContent = allCleared()
       ? `100 題完成！今關錯 ${state.stageWrong} 次`
       : `今關錯 ${state.stageWrong} 次 · 已解鎖下一關`;
+    speak('過關，做得好');
     $('#ov-clear').classList.add('on');
     stopLoop();
     return;
@@ -608,16 +693,22 @@ $$('.vk button[data-k]').forEach(btn=>{
     tryAnswer(L, el.dataset.src, el);
   });
 });
-$('#btn-speak').onclick = ()=>{
-  const q = currentQ();
-  if(!q) return;
-  const parts = [q.q];
-  // read in display order
-  $$('#targets .tgt').forEach(t=>{
-    parts.push(t.dataset.k + '，' + t.querySelector('.otxt').textContent);
-  });
-  speak(parts.join('。'));
-};
+function bindSpeakBtns(){
+  const go = ()=>{ const t = questionSpeakText(); if(t) speak(t); };
+  const bq = $('#btn-speak-q'); if(bq) bq.onclick = go;
+  const bs = $('#btn-speak'); if(bs) bs.onclick = go;
+}
+bindSpeakBtns();
+const vt = $('#btn-voice-test');
+if(vt) vt.onclick = ()=>{ voiceSelfTest(); };
+
+// 離開答題停聲
+const _back = $('#btn-play-back');
+if(_back){
+  const prev = _back.onclick;
+  _back.onclick = function(){ stopSpeak(); if(prev) return prev.apply(this, arguments); };
+}
+
 
 window.addEventListener('keydown', (e)=>{
   if(state.screen!=='play') return;
@@ -745,6 +836,7 @@ function openCert(){
   $('#p-detail').textContent = detail;
   $('#p-date').textContent = new Date().toLocaleDateString('zh-HK');
   show('cert');
+  speak(r.name + '。' + (state.player?state.player.name:'同學') + '，做得好');
 }
 $('#btn-print').onclick = ()=> window.print();
 $('#btn-cert-map').onclick = ()=>{ renderMap(); show('map'); };
