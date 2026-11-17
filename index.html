@@ -309,6 +309,23 @@ img{pointer-events:none;-webkit-user-drag:none;}
 .tgt .hull{ opacity:.35; } /* keep faint hull under pixel ship */
 .tgt::before{ display:none !important; } /* hide emoji icon */
 
+
+/* v1.6 summary + fx */
+.clear-sum{max-height:min(42vh,280px);overflow:auto;text-align:left;margin:10px 0 12px;
+  background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px;}
+.clear-sum h3{margin:0 0 8px;font-size:15px;color:var(--accent);}
+.clear-sum .ok-all{color:var(--good);font-weight:900;text-align:center;padding:12px;}
+.clear-item{border-top:1px solid rgba(255,255,255,.1);padding:8px 2px;font-size:13px;line-height:1.35;}
+.clear-item .q{font-weight:800;margin-bottom:4px;}
+.clear-item .bad{color:#ffb4b4;}
+.clear-item .good{color:#9dffc0;font-weight:800;}
+.shield-cell{background-size:contain;background-position:center;background-repeat:no-repeat;opacity:.35;}
+.shield-cell.on{opacity:1;background-color:transparent!important;
+  background-image:var(--shield-on); filter:drop-shadow(0 0 4px rgba(61,222,140,.6));}
+.boom-pop{position:absolute;z-index:7;pointer-events:none;width:48px;height:48px;
+  image-rendering:pixelated; transform:translate(-50%,-50%); animation:boomPop .55s ease-out forwards;}
+@keyframes boomPop{0%{opacity:1;transform:translate(-50%,-50%) scale(.6)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.6)}}
+
 </style>
 </head>
 <body oncontextmenu="return false;">
@@ -339,7 +356,7 @@ img{pointer-events:none;-webkit-user-drag:none;}
         <div class="info" id="voice-info">語音：未測</div>
       </div>
     </div>
-    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1.5.1-pxl-a</div>
+    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1.6-bcd-summary</div>
   </section>
 
   <!-- ID -->
@@ -451,10 +468,12 @@ img{pointer-events:none;-webkit-user-drag:none;}
   </section>
 
   <div class="overlay" id="ov-clear">
-    <div class="panel">
+    <div class="panel" style="max-width:min(520px,96vw)">
       <h2 id="clear-title">過關！</h2>
       <p id="clear-msg">太棒了</p>
+      <div class="clear-sum" id="clear-sum"></div>
       <button class="btn wide" id="btn-clear-ok" type="button">下一關／地圖</button>
+      <button class="btn ghost wide" id="btn-clear-speak" type="button" style="margin-top:8px">🔊 讀教學重點</button>
     </div>
   </div>
 </div>
@@ -478,6 +497,8 @@ window.SANFA_DATA = {"version": 1, "title": "三法守護戰", "stages": [{"id":
 'use strict';
 const DATA = window.SANFA_DATA;
 const ENEMY_SPR = {"enemy_const": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAUCAMAAAC+oj0CAAAAHlBMVEUAAAAaECD/a2vGKCj/006xu8v/9+l3gId6EhhCMywTrW15AAAAAXRSTlMAQObYZgAAAHhJREFUeNqFzwsKAyEMBFAnH6fe/8IbU7HqCjUIk0eIWMq/A1xVBFe9eOrLIarSL05N3ryrdbbVU01dtC6eG8zozlrnnlRV0pxGDh8aXmOaGcOTP1F9NzNM/s780rpl8vaminPRdETXWji2/0S1YtYc++9xhNEe4QEwMgLt97fMBQAAAABJRU5ErkJggg==", "enemy_basic": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAUCAMAAAC+oj0CAAAAKlBMVEUAAAAaECB+tv93g5QVZcD/9uixvdGxvdJ3g5ZofZYNOnqoutJLW3VCOERdQJnzAAAAAXRSTlMAQObYZgAAAIJJREFUeNqFz+sKBCEIBeC8VLazvf/r7kkXqplgFOT4/RBM6a2IjspMRz2468OJRZlVdoeKsA/aNUspGIu7Bi9OuDmgBms4VOFiuVo2wTLcFW7G1diahjt/0K1ezb4Ik70u1hZpuaLjnanTucii7oStdzjp+g+6p5x7of17uoX/egs/kfMDh3Y06VsAAAAASUVORK5CYII=", "enemy_nsl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAUCAMAAAC+oj0CAAAAHlBMVEUAAAAaECBX8KIufTL/006xu8v/9+l3gIcPShxCMywd2DypAAAAAXRSTlMAQObYZgAAAHlJREFUeNqFzwEKRCEIBNDUMbf7X/jbbLTVDzYJ9CEDlvLviVxVVa56cerLRc20fzmVvHlXdMbqVJir1cWZAIR71DpzqGYR8EDE8KHpNbeDbTr5k2UZEmwmc9vxzThS+vbUn6uvSpecWkuX7Z6sVoDmsl8vRzPGo3kARi0DFJZDbO0AAAAASUVORK5CYII="};
+const BOSS_SPR = {"full": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAMAAADTXB33AAAALVBMVEUAAAAaECDGKCh6Ehj/006zvct7g4j/9+nGys+cm5D/+evJoidhY2J2XztIOC41buM/AAAAAXRSTlMAQObYZgAAAKFJREFUeNqN0A0PhCAIBmARedOu+v8/9wQ9l1/b2ZzYM6Bw7r9FtBXvaSsbM1kaeWavm1ZiNJlJocFUArN4RujNJAAiwHG8zaopRUFSalb6MJBCTCEBzZoAp+DUs1oVTbJeKGlqhT64ci2lfFx4U83yPGeVXlYQjZrxj5jHT8wmMXVSjFTuoL9Fwzj0/jh3C3LYDzE/dn8eDfvR0yKsL+bwC44dBU92JiIJAAAAAElFTkSuQmCC", "crack": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAMAAADTXB33AAAALVBMVEUAAAAaECDGKCh6Ehj/006zvct7g4j/9+mcm5D/+evJoidhY2LGys92XztIOC69PltlAAAAAXRSTlMAQObYZgAAAKNJREFUeNqN0IkOhCAMBFAG6Ijr6v9/7vYgBjyS1RiKL2W0Kf13Aa+SM17lxVweDbmUbA+exOlmLkEXM6mlSC6ss7lUQoTEMpqfpqSmsgxnRk4hW0WrjTztFHIVrrZ262JNtCxGm1nQh1tDM9Jl40jRhYx7V2QJyJ41hSl6lsP8iWrybZOEwWSv9lu4jMP2R0q7UMt5iHr7/jisnEePh7K/uJc/QDkFEIeGrMgAAAAASUVORK5CYII=", "break": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABoAAAAYCAMAAADTXB33AAAAJ1BMVEUAAAAaECDGKCh6Ehj/006zvct7g4j/9+mcm5DJoidhY2J2XztIOC5ccEfwAAAAAXRSTlMAQObYZgAAAKRJREFUeNqN0AsOxCAIBFBHYWo/9z/vAppGa5tsjQF9Qawp/fcBn5IzPuXDQl4NuZTsE28StFhIo4e5SIHmQswWIgTU5jZanGZk+ybbcGbrU8gqqFLJ224hRSkeu3XxIqrSA/s9G+08KioUtHBwpFbl11iqWi8rYu81NTOMXgHzFc3UzhulGVxO8d/C4zl8faV0Ki2dH9FGrK/L0/np8ZL2jTX9AfJEBMF7CvSBAAAAAElFTkSuQmCC"};
+const FX_SPR = {"bullet": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAYAAAAICAMAAADtGH4KAAAAD1BMVEUAAAAaECD/007/9ujJoicKXfeyAAAAAXRSTlMAQObYZgAAACNJREFUeNpjYGBgYGQAAUYmRjDJDKIZmVigXLAkIwsyBdIAAASxACpukYnoAAAAAElFTkSuQmCC", "bulletPower": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAJCAMAAADJhsaRAAAAD1BMVEUAAAAaECD/007/9ujJoicKXfeyAAAAAXRSTlMAQObYZgAAACVJREFUeNpjYGBgYGQAA0YmRgjFDGKAKCiDBSYBUcjIgkqD9QMACFQAOJWAkxcAAAAASUVORK5CYII=", "boom": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAICAMAAAAcEyWHAAAAD1BMVEUAAAAaECD/007GKCj/9uicSlC6AAAAAXRSTlMAQObYZgAAAClJREFUeNo9igEKAEAIwtzV/998UphDGKgkYSY8s1KGkaajVOb7oej2AwxYAEu+GIV4AAAAAElFTkSuQmCC", "shield": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAMAAADXT/YiAAAAD1BMVEUAAAAaECBX8KIufTL/9uhFj7c3AAAAAXRSTlMAQObYZgAAAC5JREFUeNpFy0kOACAMAkAW//9mBU3tgUwIBQCS6FESL2yHwSpb/dIz1Dw/HCY2ExoAYxnRT+oAAAAASUVORK5CYII=", "shieldOn": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAMAAADXT/YiAAAAD1BMVEUAAAAsQ0BX8KIufTL/9uiOIJuGAAAAAXRSTlMAQObYZgAAAC5JREFUeNpFy0kOACAMAkAW//9mBU3tgUwIBQCS6FESL2yHwSpb/dIz1Dw/HCY2ExoAYxnRT+oAAAAASUVORK5CYII="};
 
 const SAVE_KEY = 'sanfa-guard-v1';
 const IDS = [
@@ -512,6 +533,8 @@ const state = {
   qOrder:[],
   streak:0,
   stageWrong:0,
+  stageMisses:[], // {id,q,pick,pickText,ans,ansText}
+  clearTeachSpeak:"",
   stageScore:0,
   runScore:0,
   locked:false,
@@ -871,13 +894,17 @@ function updateProg(){
 }
 function ensureShieldTrack(){
   const tr = $('#shield-track');
-  if(!tr || tr.children.length===10) return tr;
-  tr.innerHTML = '';
-  for(let i=0;i<10;i++){
-    const c=document.createElement('div');
-    c.className='shield-cell';
-    tr.appendChild(c);
+  if(!tr) return null;
+  if(tr.children.length!==10){
+    tr.innerHTML = '';
+    for(let i=0;i<10;i++){
+      const c=document.createElement('div');
+      c.className='shield-cell';
+      tr.appendChild(c);
+    }
   }
+  // CSS var for on-state icon
+  try{ document.documentElement.style.setProperty('--shield-on', 'url('+FX_SPR.shieldOn+')'); }catch(e){}
   return tr;
 }
 function updateShield(){
@@ -1066,6 +1093,8 @@ function startStage(id){
   state.idx = 0;
   state.streak = 0;
   state.stageWrong = 0;
+  state.stageMisses = [];
+  state.clearTeachSpeak = "";
   state.stageScore = 0;
   state.shieldLit = 0;
   state.bossHp = 0;
@@ -1097,6 +1126,12 @@ function startStage(id){
   startLoop();
 }
 
+function bossSpr(){
+  const hp = state.bossHp|0;
+  if(hp<=1) return BOSS_SPR.break;
+  if(hp===2) return BOSS_SPR.crack;
+  return BOSS_SPR.full;
+}
 function themeSpr(theme){
   if(theme==='basic') return ENEMY_SPR.enemy_basic;
   if(theme==='nsl') return ENEMY_SPR.enemy_nsl;
@@ -1146,7 +1181,7 @@ function renderQuestion(){
     el.dataset.icon = themeIcon(th, i);
     el.setAttribute('aria-label', letter + ' ' + e.text);
     const tag = isBossWave() ? 'BOSS 部件' : '入侵體';
-    const spr = themeSpr(th);
+    const spr = isBossWave() ? bossSpr() : themeSpr(th);
     el.innerHTML = '<span class="hull"></span><span class="eye"></span><span class="fins"></span>'
       + '<img class="ship-spr" alt="" draggable="false" src="'+spr+'"/>'
       + '<span class="ring"></span><span class="reticle"></span>'
@@ -1211,8 +1246,12 @@ function tryAnswer(displayLetter, srcKey, el){
       state.bossHp = Math.max(0, (state.bossHp|0) - 1);
       updateBossBar();
     }
+    if(isBossWave()){
+      const src = bossSpr();
+      $$('#targets .tgt:not(.boom) .ship-spr').forEach(function(img){ img.src = src; });
+    }
     beep(true);
-    burst(el, state.streak>=3?'💥✨':'✨');
+    burst(el, state.streak>=3?'💥✨':'✨'); boomPop(el);
     juiceCorrect(el);
     clearDrifts();
     if(isBossWave()){
@@ -1235,6 +1274,20 @@ function tryAnswer(displayLetter, srcKey, el){
     state.streak = 0;
     state.stageWrong += 1;
     state.totalWrong += 1;
+    // teaching log (first wrong pick per question)
+    try {
+      const qid = q.id;
+      if(!state.stageMisses.some(function(m){ return m.id===qid; })){
+        state.stageMisses.push({
+          id: qid,
+          q: q.q,
+          pick: srcKey,
+          pickText: q.opts[srcKey],
+          ans: q.ans,
+          ansText: q.opts[q.ans]
+        });
+      }
+    } catch(e){}
     beep(false);
     juiceWrong(el);
     toast('未擊落 · 再射！');
@@ -1251,6 +1304,28 @@ function tryAnswer(displayLetter, srcKey, el){
   $('#hud-streak').textContent = `🔥 ${state.streak}`;
 }
 
+function renderClearSummary(){
+  const box = $('#clear-sum');
+  if(!box) return;
+  const misses = state.stageMisses || [];
+  if(!misses.length){
+    box.innerHTML = '<div class="ok-all">今關全對 · 冇錯題 🎉<br><span style="font-size:13px;opacity:.85">護盾充能完美</span></div>';
+    state.clearTeachSpeak = '今關全對，冇錯題，做得好。';
+    return;
+  }
+  let html = '<h3>今關錯題 · 教學回饋（'+misses.length+'）</h3>';
+  const speaks = ['今關有'+misses.length+'題答錯過，一齊溫習。'];
+  misses.forEach(function(m, i){
+    html += '<div class="clear-item">'
+      + '<div class="q">'+(i+1)+'. 題'+m.id+' · '+m.q+'</div>'
+      + '<div class="bad">你揀過：'+m.pick+' · '+m.pickText+'</div>'
+      + '<div class="good">正確：'+m.ans+' · '+m.ansText+'</div>'
+      + '</div>';
+    speaks.push('題'+m.id+'，'+m.q+'。正確係'+m.ans+'，'+m.ansText+'。');
+  });
+  box.innerHTML = html;
+  state.clearTeachSpeak = speaks.join('');
+}
 function nextQ(){
   if(state.idx >= 9){
     // clear stage
@@ -1275,6 +1350,7 @@ function nextQ(){
       ? `全線護盾完成！總錯 ${state.totalWrong} · ⭐${state.runScore}`
       : `護盾 10/10！錯 ${state.stageWrong} · ⭐+${state.stageScore} · 下一防線已開`;
     speak(isBossWave() || state.idx>=9 ? 'Boss 關過關，做得好' : '過關，做得好');
+    renderClearSummary();
     $('#ov-clear').classList.add('on');
     // keep loop briefly for confetti then stop
     setTimeout(function(){ if(state.screen!=='play') stopLoop(); }, 1200);
@@ -1284,7 +1360,10 @@ function nextQ(){
   renderQuestion();
 }
 
+const bcs = $('#btn-clear-speak');
+if(bcs) bcs.onclick = function(){ if(state.clearTeachSpeak) speak(state.clearTeachSpeak); };
 $('#btn-clear-ok').onclick = ()=>{
+  stopSpeak();
   $('#ov-clear').classList.remove('on');
   if(allCleared()){ openCert(); return; }
   renderMap(); show('map');
@@ -1339,8 +1418,9 @@ function shootTo(el, ok, silent){
   const x1 = tr.left + tr.width/2 - ar.left + (silent ? (Math.random()-0.5)*24 : 0);
   const y1 = tr.top + tr.height/2 - ar.top + (silent ? (Math.random()-0.5)*16 : 0);
   const streakBoost = Math.min(3, state.streak|0);
+  const bImg = ok ? ((state.streak|0)>=3 ? FX_SPR.bulletPower : FX_SPR.bullet) : null;
   state.bullets.push({
-    x:x0,y:y0,x1,y1,t:0,life:1, ok,
+    x:x0,y:y0,x1,y1,t:0,life:1, ok, img:bImg,
     color: ok ? (streakBoost>=3 ? '#fff36a' : '#ffd34e') : '#ff6b6b',
     w: ok ? 4 + streakBoost : 3
   });
@@ -1367,6 +1447,21 @@ function shootTo(el, ok, silent){
   }
 }
 
+function boomPop(el){
+  try{
+    const arena = $('#arena'); if(!arena||!el) return;
+    const ar = arena.getBoundingClientRect();
+    const tr = el.getBoundingClientRect();
+    const img = document.createElement('img');
+    img.className = 'boom-pop';
+    img.src = FX_SPR.boom;
+    img.alt = '';
+    img.style.left = (tr.left+tr.width/2-ar.left)+'px';
+    img.style.top = (tr.top+tr.height/2-ar.top)+'px';
+    arena.appendChild(img);
+    setTimeout(function(){ img.remove(); }, 560);
+  }catch(e){}
+}
 function burst(el, emo){
   const arena = $('#arena');
   const ar = arena.getBoundingClientRect();
@@ -1455,8 +1550,15 @@ function draw(dt){
     ctx.lineTo(x,y);
     ctx.stroke();
     ctx.shadowBlur = 0;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill();
+    if(b.img){
+      if(!b._im){ b._im = new Image(); b._im.src = b.img; }
+      const s = ((state.streak|0)>=3?18:14);
+      if(b._im.complete){ ctx.drawImage(b._im, x-s/2, y-s/2, s, s); }
+      else { ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill(); }
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill();
+    }
     return t < 1;
   });
   // particles
