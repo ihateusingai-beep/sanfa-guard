@@ -233,6 +233,71 @@ img{pointer-events:none;-webkit-user-drag:none;}
 #sc-play .qbox{margin-bottom:6px;}
 .arena-danger{box-shadow:inset 0 0 60px rgba(255,80,80,.12)!important;}
 
+
+/* === v1.5 STG upgrade === */
+.targets{
+  display:block !important; /* absolute children drift */
+  pointer-events:none;
+}
+.tgt{
+  position:absolute !important;
+  width:min(30%, 200px);
+  height:auto;
+  min-height:140px;
+  max-width:200px;
+  flex:none !important;
+  will-change:left, top, transform;
+}
+.tgt .hull{
+  position:absolute; inset:0; border-radius:22px; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255,255,255,.28), transparent 40%),
+    linear-gradient(165deg, rgba(255,255,255,.12), transparent 42%),
+    linear-gradient(180deg, rgba(40,70,130,.95), rgba(10,18,40,.92));
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.14), 0 12px 28px rgba(0,0,0,.45);
+}
+.tgt.theme-constitution .hull{ background:
+  radial-gradient(circle at 50% 18%, rgba(255,200,200,.25), transparent 40%),
+  linear-gradient(180deg, rgba(120,30,40,.95), rgba(30,8,12,.92)); }
+.tgt.theme-basic .hull{ background:
+  radial-gradient(circle at 50% 18%, rgba(200,220,255,.25), transparent 40%),
+  linear-gradient(180deg, rgba(30,70,150,.95), rgba(8,20,50,.92)); }
+.tgt.theme-nsl .hull{ background:
+  radial-gradient(circle at 50% 18%, rgba(200,255,220,.25), transparent 40%),
+  linear-gradient(180deg, rgba(30,100,60,.95), rgba(8,30,16,.92)); }
+.tgt .eye{
+  position:absolute; top:14px; left:50%; transform:translateX(-50%);
+  width:54px; height:18px; border-radius:10px; z-index:1; pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(255,80,80,.85), transparent);
+  box-shadow:0 0 12px rgba(255,60,60,.65);
+  animation:eyePulse 1.2s ease-in-out infinite;
+}
+@keyframes eyePulse{0%,100%{opacity:.55; width:40px}50%{opacity:1; width:58px}}
+.tgt .fins{
+  position:absolute; bottom:10px; left:8px; right:8px; height:8px; z-index:1; pointer-events:none;
+  background:repeating-linear-gradient(90deg, rgba(255,211,78,.0) 0 6px, rgba(255,211,78,.35) 6px 10px);
+  border-radius:4px; opacity:.7;
+}
+.tgt .badge, .tgt .otxt, .tgt .tag, .tgt .ring, .tgt .reticle{ position:relative; z-index:2; }
+.tgt.boss{
+  width:min(32%, 210px) !important;
+  max-width:220px !important;
+  min-height:168px;
+}
+.tgt.boss .hull{
+  box-shadow: inset 0 0 0 3px rgba(255,211,78,.45), 0 0 30px rgba(255,80,80,.35), 0 16px 40px rgba(0,0,0,.5);
+}
+.tgt.boss .eye{ height:22px; background:linear-gradient(90deg, transparent, #ffd34e, #ff4d4d, #ffd34e, transparent); }
+.tgt.boss .tag{ color:#ffd34e; font-size:13px; }
+.boss-bar-wrap{position:absolute; left:12px; right:12px; top:8px; z-index:8; pointer-events:none;
+  opacity:0; transition:opacity .2s;}
+.boss-bar-wrap.on{opacity:1;}
+.boss-bar-label{font-size:12px;font-weight:900;color:#ffd34e;margin-bottom:4px;text-shadow:0 1px 2px #000;}
+.boss-bar-track{height:12px;border-radius:999px;background:rgba(0,0,0,.45);border:1px solid rgba(255,211,78,.35);overflow:hidden;}
+.boss-bar-fill{height:100%;width:100%;background:linear-gradient(90deg,#ff4d4d,#ffd34e);transition:width .35s ease;box-shadow:0 0 10px rgba(255,80,80,.5);}
+.arena.boss-mode{box-shadow:inset 0 0 100px rgba(255,60,60,.22), inset 0 0 40px rgba(255,211,78,.12)!important;}
+.tgt.drift-paused{ /* keep */ }
+
 </style>
 </head>
 <body oncontextmenu="return false;">
@@ -263,7 +328,7 @@ img{pointer-events:none;-webkit-user-drag:none;}
         <div class="info" id="voice-info">語音：未測</div>
       </div>
     </div>
-    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1.4-loop</div>
+    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1.5-stg</div>
   </section>
 
   <!-- ID -->
@@ -439,6 +504,10 @@ const state = {
   locked:false,
   phase:'idle', // idle|answering|clearing
   shieldLit:0,
+  bossHp:0,
+  bossMax:3,
+  drifts:[], // {el,x,y,vx,phase,amp}
+
   bullets:[],
   particles:[],
   floats:[],
@@ -522,7 +591,7 @@ function applySave(s){
 function show(id){
   $$('.screen').forEach(el=>el.classList.toggle('on', el.id==='sc-'+id));
   state.screen = id;
-  if(id!=='play'){ stopLoop(); stopSpeak(); }
+  if(id!=='play'){ stopLoop(); stopSpeak(); clearDrifts(); const bw=$('#boss-bar-wrap'); if(bw) bw.classList.remove('on'); const ar=$('#arena'); if(ar){ ar.classList.remove('boss-mode','arena-danger'); } }
 }
 
 function toast(msg){
@@ -809,6 +878,99 @@ function updateShield(){
   const st = $('#shield-txt');
   if(st) st.textContent = show + '/10';
 }
+function isBossWave(){
+  // 每關最後 3 波 = Boss 突襲（idx 7,8,9）
+  return (state.idx|0) >= 7;
+}
+function updateBossBar(){
+  const wrap = $('#boss-bar-wrap');
+  if(!wrap) return;
+  const on = isBossWave() || (state.bossHp>0 && state.idx>=7);
+  wrap.classList.toggle('on', on && state.screen==='play');
+  const lab = $('#boss-bar-label');
+  const fill = $('#boss-bar-fill');
+  const hp = Math.max(0, state.bossHp|0);
+  const mx = Math.max(1, state.bossMax|0);
+  if(lab) lab.textContent = on ? ('BOSS 護甲 '+hp+'/'+mx) : '';
+  if(fill) fill.style.width = (Math.max(0, hp)/mx*100)+'%';
+}
+function clearDrifts(){
+  state.drifts = [];
+  const box = $('#targets');
+  if(box){ box.style.transform=''; }
+}
+function layoutTargetsForDrift(){
+  const box = $('#targets');
+  if(!box) return;
+  const els = $$('#targets .tgt');
+  const W = box.clientWidth || 1;
+  const H = box.clientHeight || 1;
+  const n = els.length;
+  state.drifts = [];
+  const boss = isBossWave() && n===3;
+  // boss layout: one big center? keep 3 but larger spacing; mark center as boss shell look on all with boss class on container
+  els.forEach(function(el, i){
+    el.classList.toggle('boss', isBossWave());
+    const tw = el.offsetWidth || Math.min(W*0.3, 200);
+    const th = el.offsetHeight || 150;
+    // initial x slots
+    let x, y;
+    if(isBossWave()){
+      // triangle-ish: left, top-center, right — slow sway
+      if(i===0){ x = W*0.06; y = H*0.28; }
+      else if(i===1){ x = (W-tw)/2; y = H*0.08; }
+      else { x = W*0.94 - tw; y = H*0.28; }
+    } else {
+      const slot = (i+0.5)/n;
+      x = slot * W - tw/2;
+      y = H*0.18 + (i%2)*12;
+    }
+    x = Math.max(4, Math.min(W - tw - 4, x));
+    y = Math.max(4, Math.min(H - th - 8, y));
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+    const speed = isBossWave() ? (0.18 + i*0.04) : (0.35 + i*0.08);
+    const dir = (i%2===0) ? 1 : -1;
+    state.drifts.push({
+      el: el,
+      x: x,
+      y: y,
+      vx: speed * dir,
+      baseY: y,
+      phase: i * 1.7,
+      amp: isBossWave() ? 6 : 10,
+      w: tw,
+      h: th
+    });
+  });
+}
+function tickDrifts(dt){
+  if(state.phase==='clearing' || state.screen!=='play') return;
+  const box = $('#targets');
+  if(!box || !state.drifts || !state.drifts.length) return;
+  // don't fight camera translate on box — drifts set left/top on el; cam still translates box
+  const W = box.clientWidth || 1;
+  const H = box.clientHeight || 1;
+  const t = performance.now()/1000;
+  state.drifts.forEach(function(d){
+    if(!d.el || !d.el.isConnected) return;
+    if(d.el.classList.contains('boom')) return;
+    d.x += d.vx * (dt*60); // scale ~px per frame at 60fps baseline
+    // bounce
+    const maxX = Math.max(4, W - (d.w||d.el.offsetWidth||160) - 4);
+    if(d.x < 4){ d.x = 4; d.vx = Math.abs(d.vx); }
+    if(d.x > maxX){ d.x = maxX; d.vx = -Math.abs(d.vx); }
+    const yy = d.baseY + Math.sin(t * 1.3 + d.phase) * d.amp;
+    d.el.style.left = d.x.toFixed(1) + 'px';
+    d.el.style.top = yy.toFixed(1) + 'px';
+    // boss class uses translateX(-50%) which breaks left — neutralize during drift
+    if(d.el.classList.contains('boss')){
+      d.el.style.transform = 'none';
+    }
+  });
+}
 function showWaveBanner(text, sub){
   const b = $('#wave-banner');
   if(!b) return;
@@ -893,8 +1055,11 @@ function startStage(id){
   state.stageWrong = 0;
   state.stageScore = 0;
   state.shieldLit = 0;
+  state.bossHp = 0;
+  state.bossMax = 3;
   state.locked = false;
   state.phase = 'answering';
+  clearDrifts();
   state.bullets = [];
   state.particles = [];
   state.confetti = [];
@@ -951,19 +1116,21 @@ function renderQuestion(){
   }
     const mapLetter = {};
   const stMeta = stageMeta(state.stageId) || {theme:'constitution'};
-  const arena = $('#arena');
-  if(arena) arena.classList.add('arena-danger');
   entries.forEach((e,i)=>{
     const letter = keys[i];
     mapLetter[letter] = e.src;
     const el = document.createElement('button');
     el.type='button';
-    el.className='tgt enter threat';
+    const th = stMeta.theme || 'constitution';
+    el.className = 'tgt enter threat theme-'+th + (isBossWave()?' boss':'');
     el.dataset.k = letter;
     el.dataset.src = e.src;
-    el.dataset.icon = themeIcon(stMeta.theme, i);
+    el.dataset.icon = themeIcon(th, i);
     el.setAttribute('aria-label', letter + ' ' + e.text);
-    el.innerHTML = '<span class="ring"></span><span class="reticle"></span><span class="tag">入侵體</span><span class="badge">'+letter+'</span><span class="otxt"></span>';
+    const tag = isBossWave() ? 'BOSS 部件' : '入侵體';
+    el.innerHTML = '<span class="hull"></span><span class="eye"></span><span class="fins"></span>'
+      + '<span class="ring"></span><span class="reticle"></span>'
+      + '<span class="tag">'+tag+'</span><span class="badge">'+letter+'</span><span class="otxt"></span>';
     el.querySelector('.otxt').textContent = e.text;
     el.addEventListener('click', function(){ tryAnswer(letter, e.src, el); });
     box.appendChild(el);
@@ -975,11 +1142,28 @@ function renderQuestion(){
   }
   state.locked = false;
   state.phase = 'answering';
-  updateProg();
+  // boss HP: at first boss wave init 3
+  if(state.idx===7){ state.bossHp = 3; state.bossMax = 3; }
+    updateProg();
   updateShield();
   updateScoreHud();
+  updateBossBar();
+  const arena = $('#arena');
+  if(arena){
+    arena.classList.toggle('boss-mode', isBossWave());
+    arena.classList.add('arena-danger');
+  }
   // wave callout
-  showWaveBanner('第 ' + (state.idx+1) + ' 波', (stMeta.title || (typeof st!=='undefined' && st.title) || '守護'));
+  if(isBossWave()){
+    showWaveBanner('BOSS ' + (state.bossHp) + '/3', (stMeta.title || st.title || '突襲'));
+  } else {
+    showWaveBanner('第 ' + (state.idx+1) + ' 波', (stMeta.title || (typeof st!=='undefined' && st.title) || '守護'));
+  }
+  // layout after paint
+  requestAnimationFrame(function(){
+    layoutTargetsForDrift();
+    requestAnimationFrame(layoutTargetsForDrift);
+  });
   autoSpeakQuestion();
 }
 
@@ -1003,12 +1187,23 @@ function tryAnswer(displayLetter, srcKey, el){
     state.totalCorrect += 1;
     state.shieldLit = Math.min(10, (state.shieldLit|0) + 1);
     updateShield();
+    if(isBossWave()){
+      state.bossHp = Math.max(0, (state.bossHp|0) - 1);
+      updateBossBar();
+    }
     beep(true);
     burst(el, state.streak>=3?'💥✨':'✨');
     juiceCorrect(el);
-    toast(state.streak>=3?('連對×'+state.streak+' 護盾+1'):'擊落！護盾+1');
-    speak(state.streak>=3?('啱喇！連對'+state.streak):'啱喇');
-    showWaveBanner('擊落！', 'SHIELD +1');
+    clearDrifts();
+    if(isBossWave()){
+      toast(state.bossHp>0 ? ('BOSS 護甲 -1 · 剩 '+state.bossHp) : 'BOSS 擊破！');
+      speak(state.bossHp>0 ? '打中' : 'Boss 打倒');
+      showWaveBanner(state.bossHp>0 ? ('護甲 '+state.bossHp+'/3') : 'BOSS 擊破', 'BOSS');
+    } else {
+      toast(state.streak>=3?('連對×'+state.streak+' 護盾+1'):'擊落！護盾+1');
+      speak(state.streak>=3?('啱喇！連對'+state.streak):'啱喇');
+      showWaveBanner('擊落！', 'SHIELD +1');
+    }
     const ar = $('#arena'); if(ar) ar.classList.remove('arena-danger');
     setTimeout(function(){
       robot.classList.remove('happy');
@@ -1059,7 +1254,7 @@ function nextQ(){
     $('#clear-msg').textContent = allCleared()
       ? `全線護盾完成！總錯 ${state.totalWrong} · ⭐${state.runScore}`
       : `護盾 10/10！錯 ${state.stageWrong} · ⭐+${state.stageScore} · 下一防線已開`;
-    speak('過關，做得好');
+    speak(isBossWave() || state.idx>=9 ? 'Boss 關過關，做得好' : '過關，做得好');
     $('#ov-clear').classList.add('on');
     // keep loop briefly for confetti then stop
     setTimeout(function(){ if(state.screen!=='play') stopLoop(); }, 1200);
@@ -1174,6 +1369,7 @@ function startLoop(){
     // hit-stop: still decay cam/fx, skip bullet advance a bit
     const frozen = now < state.hitStopUntil;
     updateCam(dt);
+    if(!frozen) tickDrifts(dt);
     draw(frozen ? dt*0.35 : dt);
     state.raf = requestAnimationFrame(loop);
   };
