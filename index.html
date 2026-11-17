@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>三法守護戰｜將軍澳培智學校</title>
+<style>
+:root{
+  --bg:#0b1b3a; --bg2:#132a52; --card:#183566; --ink:#f4f7ff; --muted:#a9b8d9;
+  --accent:#ffd34e; --good:#3dde8c; --bad:#ff6b6b; --a:#5b8cff; --b:#ff8f5b; --c:#c084fc;
+  --const:#c62828; --basic:#1565c0; --nsl:#2e7d32;
+  --safe-top:env(safe-area-inset-top,0px); --safe-bot:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:"PingFang HK","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  overflow:hidden; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; touch-action:manipulation;}
+body{padding:var(--safe-top) 0 var(--safe-bot);}
+button{font:inherit;color:inherit;border:none;cursor:pointer;}
+img{pointer-events:none;-webkit-user-drag:none;}
+#app{position:relative;width:100%;height:100dvh;max-height:100dvh;overflow:hidden;}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;padding:12px 14px 16px;}
+.screen.on{display:flex;}
+.topbar{display:flex;align-items:center;gap:10px;min-height:52px;}
+.topbar .logo{width:40px;height:40px;border-radius:10px;background:#fff;object-fit:contain;padding:2px;}
+.topbar .titles{flex:1;min-width:0;}
+.topbar h1{margin:0;font-size:clamp(18px,4.2vw,26px);line-height:1.15;}
+.topbar p{margin:2px 0 0;font-size:12px;color:var(--muted);}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.08);font-size:13px;}
+.btn{border-radius:16px;padding:14px 18px;font-weight:800;font-size:18px;background:linear-gradient(180deg,#ffd34e,#f5b700);color:#1a1200;box-shadow:0 6px 0 #b8860b,0 10px 24px rgba(0,0,0,.35);}
+.btn:active{transform:translateY(3px);box-shadow:0 3px 0 #b8860b;}
+.btn.ghost{background:rgba(255,255,255,.1);color:#fff;box-shadow:none;}
+.btn.good{background:linear-gradient(180deg,#57f0a2,#1fbf6a);color:#062416;box-shadow:0 6px 0 #0f7a42;}
+.btn.wide{width:100%;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:14px;}
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;}
+.hero .mascot{font-size:72px;filter:drop-shadow(0 8px 16px rgba(0,0,0,.4));animation:float 2.4s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.hint{color:var(--muted);font-size:14px;}
+.id-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;align-content:center;}
+.id-card{border-radius:20px;padding:16px 12px;text-align:center;background:rgba(255,255,255,.08);border:3px solid transparent;font-weight:800;font-size:20px;}
+.id-card .emo{font-size:48px;display:block;margin-bottom:8px;}
+.id-card.on{border-color:var(--accent);background:rgba(255,211,78,.15);transform:scale(1.02);}
+.map-grid{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:4px 2px 12px;align-content:start;}
+.stage{position:relative;border-radius:18px;padding:14px 12px 12px;min-height:96px;text-align:left;border:2px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);}
+.stage .n{font-size:12px;opacity:.8;}
+.stage .t{font-size:18px;font-weight:900;margin-top:4px;}
+.stage .s{font-size:12px;color:var(--muted);margin-top:2px;}
+.stage .st{margin-top:8px;font-size:13px;font-weight:700;}
+.stage.locked{opacity:.45;filter:grayscale(.4);}
+.stage.cleared{outline:2px solid var(--good);}
+.stage.theme-constitution{background:linear-gradient(135deg,rgba(198,40,40,.35),rgba(255,255,255,.05));}
+.stage.theme-basic{background:linear-gradient(135deg,rgba(21,101,192,.4),rgba(255,255,255,.05));}
+.stage.theme-nsl{background:linear-gradient(135deg,rgba(46,125,50,.4),rgba(255,255,255,.05));}
+.play-hud{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;}
+.play-hud .stat{background:rgba(0,0,0,.25);border-radius:12px;padding:6px 10px;font-weight:800;font-size:14px;}
+.qbox{background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:12px 14px;margin-bottom:10px;}
+.qbox .qid{font-size:12px;color:var(--muted);font-weight:700;}
+.qbox .qtext{font-size:clamp(18px,4.6vw,28px);font-weight:900;line-height:1.35;margin-top:4px;}
+.arena{position:relative;flex:1;min-height:0;border-radius:22px;overflow:hidden;background:
+  radial-gradient(circle at 50% 120%, rgba(255,211,78,.15), transparent 50%),
+  linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.2));
+  border:1px solid rgba(255,255,255,.12);}
+.arena.theme-constitution{box-shadow:inset 0 0 80px rgba(198,40,40,.18);}
+.arena.theme-basic{box-shadow:inset 0 0 80px rgba(21,101,192,.22);}
+.arena.theme-nsl{box-shadow:inset 0 0 80px rgba(46,125,50,.22);}
+#cv{position:absolute;inset:0;width:100%;height:100%;}
+.targets{position:absolute;left:0;right:0;top:8%;bottom:28%;display:flex;justify-content:space-evenly;align-items:stretch;gap:8px;padding:0 8px;pointer-events:none;}
+.tgt{pointer-events:auto;flex:1;max-width:210px;border-radius:22px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:8px;
+  border:3px solid rgba(255,255,255,.25);background:rgba(8,16,36,.72);backdrop-filter:blur(4px);
+  box-shadow:0 10px 24px rgba(0,0,0,.35); animation:bob 2.2s ease-in-out infinite; transform-origin:center bottom;}
+.tgt:nth-child(2){animation-delay:.35s}
+.tgt:nth-child(3){animation-delay:.7s}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.tgt .badge{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;font-size:28px;font-weight:900;color:#fff;box-shadow:0 4px 0 rgba(0,0,0,.25);}
+.tgt[data-k=A] .badge{background:var(--a)}
+.tgt[data-k=B] .badge{background:var(--b)}
+.tgt[data-k=C] .badge{background:var(--c)}
+.tgt .otxt{font-size:clamp(13px,3.2vw,18px);font-weight:800;line-height:1.25;text-align:center;padding:0 4px;}
+.tgt.flash-good{animation:none;transform:scale(1.06);border-color:var(--good);box-shadow:0 0 0 4px rgba(61,222,140,.35),0 12px 28px rgba(0,0,0,.4);}
+.tgt.flash-bad{animation:shake .35s linear;border-color:var(--bad);}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.robot-wrap{position:absolute;left:0;right:0;bottom:6px;height:22%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;pointer-events:none;}
+.robot{font-size:clamp(42px,10vw,64px);filter:drop-shadow(0 6px 10px rgba(0,0,0,.45));transition:transform .12s;}
+.robot.shoot{transform:translateY(4px) scale(0.96);}
+.robot.happy{transform:scale(1.08);}
+.vk{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-top:10px;}
+.vk button{min-height:56px;border-radius:16px;font-size:22px;font-weight:900;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.14);}
+.vk button[data-k=A]{background:rgba(91,140,255,.25);border-color:var(--a)}
+.vk button[data-k=B]{background:rgba(255,143,91,.25);border-color:var(--b)}
+.vk button[data-k=C]{background:rgba(192,132,252,.25);border-color:var(--c)}
+.vk .speak{font-size:20px;}
+.toast{position:absolute;left:50%;top:18%;transform:translate(-50%,-10px);background:rgba(0,0,0,.72);padding:10px 16px;border-radius:999px;font-weight:900;opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;z-index:5;}
+.toast.on{opacity:1;transform:translate(-50%,0);}
+.overlay{position:absolute;inset:0;background:rgba(4,10,24,.72);display:none;align-items:center;justify-content:center;padding:18px;z-index:8;}
+.overlay.on{display:flex;}
+.panel{width:min(420px,100%);background:linear-gradient(180deg,#1c3a6e,#122648);border:1px solid rgba(255,255,255,.16);border-radius:22px;padding:18px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.45);}
+.panel h2{margin:0 0 8px;font-size:26px;}
+.panel p{margin:0 0 14px;color:var(--muted);}
+.burst{position:absolute;pointer-events:none;font-size:28px;animation:burst .7s ease-out forwards;z-index:6;}
+@keyframes burst{0%{transform:translate(-50%,-50%) scale(.6);opacity:1}100%{transform:translate(-50%,-120%) scale(1.4);opacity:0}}
+.footer-note{text-align:center;font-size:11px;color:var(--muted);margin-top:8px;}
+#cert-print-root{display:none;}
+@media print{
+  body *{visibility:hidden !important;}
+  #cert-print-root, #cert-print-root *{visibility:visible !important;}
+  #cert-print-root{display:block !important; position:fixed; inset:0; background:#fff; color:#111;}
+  @page{size:A4 landscape; margin:12mm;}
+}
+.cert-sheet{width:100%;height:100%;padding:18px;border:8px solid #c5a26f;background:#fffef0;color:#222;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:"PingFang HK","Microsoft JhengHei",sans-serif;}
+.cert-sheet h1{font-size:34px;margin:8px 0;color:#8b6914;}
+.cert-sheet .big{font-size:28px;font-weight:900;margin:10px 0;}
+.cert-sheet .meta{font-size:16px;margin-top:8px;}
+.fx-dim{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at var(--x,50%) var(--y,50%), rgba(255,211,78,.35), transparent 42%);opacity:0;transition:opacity .15s;}
+.fx-dim.on{opacity:1;}
+</style>
+</head>
+<body oncontextmenu="return false;">
+<div id="app">
+  <!-- HOME -->
+  <section id="sc-home" class="screen on">
+    <div class="topbar">
+      <img class="logo" src="assets/puichi-logo.png" alt="校徽" onerror="this.style.display='none'" />
+      <div class="titles">
+        <h1>三法守護戰</h1>
+        <p>將軍澳培智學校 · 憲法／基本法／國安法</p>
+      </div>
+    </div>
+    <div class="hero">
+      <div class="mascot" aria-hidden="true">🛡️🤖</div>
+      <div class="card" style="max-width:420px;width:100%">
+        <div style="font-size:18px;font-weight:900;margin-bottom:6px;">打中正確答案 · 守護香港</div>
+        <div class="hint">10 關 × 10 題＝100 題全清 · 可中途儲存</div>
+      </div>
+      <button class="btn wide" id="btn-start" type="button">開始</button>
+      <button class="btn ghost wide" id="btn-continue" type="button" style="display:none">繼續上次</button>
+    </div>
+    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1</div>
+  </section>
+
+  <!-- ID -->
+  <section id="sc-id" class="screen">
+    <div class="topbar">
+      <img class="logo" src="assets/puichi-logo.png" alt="" onerror="this.style.display='none'" />
+      <div class="titles"><h1>揀身份卡</h1><p>唔使打字名</p></div>
+    </div>
+    <div class="id-grid" id="id-grid"></div>
+    <button class="btn wide" id="btn-id-go" type="button" disabled>入關卡</button>
+  </section>
+
+  <!-- MAP -->
+  <section id="sc-map" class="screen">
+    <div class="topbar">
+      <img class="logo" src="assets/puichi-logo.png" alt="" onerror="this.style.display='none'" />
+      <div class="titles">
+        <h1>關卡地圖</h1>
+        <p id="map-player">守護者</p>
+      </div>
+      <span class="pill" id="map-stats">⭐ 0</span>
+    </div>
+    <div class="map-grid" id="map-grid"></div>
+    <div class="grid2">
+      <button class="btn ghost" id="btn-map-home" type="button">主頁</button>
+      <button class="btn good" id="btn-map-cert" type="button" style="display:none">睇證書</button>
+    </div>
+  </section>
+
+  <!-- PLAY -->
+  <section id="sc-play" class="screen">
+    <div class="play-hud">
+      <button class="btn ghost" id="btn-play-back" type="button" style="padding:8px 12px;font-size:14px">← 地圖</button>
+      <span class="stat" id="hud-stage">第1關</span>
+      <span class="stat" id="hud-prog">1/10</span>
+      <span class="stat" id="hud-streak">🔥 0</span>
+      <span class="stat" id="hud-wrong">錯 0</span>
+    </div>
+    <div class="qbox">
+      <div class="qid" id="q-id">題 1</div>
+      <div class="qtext" id="q-text">題目</div>
+    </div>
+    <div class="arena" id="arena">
+      <canvas id="cv"></canvas>
+      <div class="fx-dim" id="fx"></div>
+      <div class="targets" id="targets"></div>
+      <div class="robot-wrap"><div class="robot" id="robot">🤖</div></div>
+      <div class="toast" id="toast"></div>
+    </div>
+    <div class="vk">
+      <button type="button" data-k="A">A</button>
+      <button type="button" data-k="B">B</button>
+      <button type="button" data-k="C">C</button>
+      <button type="button" class="speak" id="btn-speak" title="朗讀">🔊</button>
+    </div>
+  </section>
+
+  <!-- CERT screen -->
+  <section id="sc-cert" class="screen">
+    <div class="hero">
+      <div class="mascot">🏆</div>
+      <div class="card" style="width:min(440px,100%)">
+        <div id="cert-rank" style="font-size:42px;font-weight:900;color:var(--accent)">金獎</div>
+        <div id="cert-name" style="font-size:22px;font-weight:800;margin-top:8px">同學</div>
+        <div id="cert-detail" class="hint" style="margin-top:8px">完成 100 題</div>
+      </div>
+      <button class="btn wide" id="btn-print" type="button">列印證書</button>
+      <button class="btn ghost wide" id="btn-cert-map" type="button">返回地圖</button>
+    </div>
+  </section>
+
+  <div class="overlay" id="ov-clear">
+    <div class="panel">
+      <h2 id="clear-title">過關！</h2>
+      <p id="clear-msg">太棒了</p>
+      <button class="btn wide" id="btn-clear-ok" type="button">下一關／地圖</button>
+    </div>
+  </div>
+</div>
+
+<div id="cert-print-root">
+  <div class="cert-sheet">
+    <img src="assets/puichi-logo.png" alt="" style="width:72px;height:72px;object-fit:contain" onerror="this.style.display='none'" />
+    <div style="font-size:18px;margin-top:6px;">將軍澳培智學校</div>
+    <h1>三法守護戰 · 完成證書</h1>
+    <div class="big" id="p-rank">金獎</div>
+    <div class="big" id="p-name">同學</div>
+    <div class="meta" id="p-detail">完成憲法、基本法與香港國安法 100 題</div>
+    <div class="meta" id="p-date"></div>
+  </div>
+</div>
+
+<script>
+window.SANFA_DATA = {"version": 1, "title": "三法守護戰", "stages": [{"id": 1, "title": "憲法·第1關", "sub": "認識國家", "theme": "constitution", "from": 1, "to": 10}, {"id": 2, "title": "憲法·第2關", "sub": "認識國家", "theme": "constitution", "from": 11, "to": 20}, {"id": 3, "title": "憲法·第3關", "sub": "認識國家", "theme": "constitution", "from": 21, "to": 30}, {"id": 4, "title": "憲法·第4關", "sub": "認識國家", "theme": "constitution", "from": 31, "to": 40}, {"id": 5, "title": "基本法·第1關", "sub": "認識香港", "theme": "basic", "from": 41, "to": 50}, {"id": 6, "title": "基本法·第2關", "sub": "認識香港", "theme": "basic", "from": 51, "to": 60}, {"id": 7, "title": "基本法·第3關", "sub": "認識香港", "theme": "basic", "from": 61, "to": 70}, {"id": 8, "title": "國安法·第1關", "sub": "守護安全", "theme": "nsl", "from": 71, "to": 80}, {"id": 9, "title": "國安法·第2關", "sub": "守護安全", "theme": "nsl", "from": 81, "to": 90}, {"id": 10, "title": "國安法·第3關", "sub": "守護安全", "theme": "nsl", "from": 91, "to": 100}], "questions": [{"id": 1, "q": "中華人民共和國的最高法律是什麼？", "opts": {"A": "《中華人民共和國憲法》", "B": "《校規》", "C": "《道路交通條例》"}, "ans": "A"}, {"id": 2, "q": "國旗上的大五角星代表什麼？", "opts": {"A": "中國共產黨", "B": "農民", "C": "工人"}, "ans": "A"}, {"id": 3, "q": "中華人民共和國的首都在哪裡？", "opts": {"A": "上海", "B": "北京", "C": "廣州"}, "ans": "B"}, {"id": 4, "q": "國旗上有多少顆五角星？", "opts": {"A": "3 顆", "B": "4 顆", "C": "5 顆"}, "ans": "C"}, {"id": 5, "q": "中華人民共和國的國歌名稱是什麼？", "opts": {"A": "《義勇軍進行曲》", "B": "《東方之珠》", "C": "《歡樂頌》"}, "ans": "A"}, {"id": 6, "q": "升國旗時，我們應該怎樣做？", "opts": {"A": "肅立並保持莊嚴", "B": "隨便走動", "C": "大聲說笑"}, "ans": "A"}, {"id": 7, "q": "中華人民共和國國旗的主要顏色是什麼？", "opts": {"A": "藍色", "B": "紅色", "C": "黃色"}, "ans": "B"}, {"id": 8, "q": "憲法規定，中華人民共和國的國徽中間是什麼？", "opts": {"A": "天安門", "B": "長城", "C": "故宮"}, "ans": "A"}, {"id": 9, "q": "每年的哪一天是國慶日？", "opts": {"A": "1 月1 日", "B": "7 月1 日", "C": "10 月1 日"}, "ans": "C"}, {"id": 10, "q": "我國的最高國家權力機關是什麼？", "opts": {"A": "全國人民代表大會", "B": "國務院", "C": "最高人民法院"}, "ans": "A"}, {"id": 11, "q": "憲法是其他所有法律的什麼？", "opts": {"A": "基礎和根本", "B": "參考資料", "C": "次要補充"}, "ans": "A"}, {"id": 12, "q": "奏唱國歌時，我們應該怎樣？", "opts": {"A": "嚴肅肅立", "B": "戴著帽子跑步", "C": "吃東西"}, "ans": "A"}, {"id": 13, "q": "中國國旗上的小五角星有多少顆？", "opts": {"A": "2 顆", "B": "4 顆", "C": "5 顆"}, "ans": "B"}, {"id": 14, "q": "每年12 月4 日是我國的什麼日子？", "opts": {"A": "國家憲法日", "B": "兒童節", "C": "教師節"}, "ans": "A"}, {"id": 15, "q": "我國現任的國家主席是誰？", "opts": {"A": "習近平先生", "B": "鄧小平先生", "C": "毛澤東先生"}, "ans": "A"}, {"id": 16, "q": "我國的全稱是什麼？", "opts": {"A": "中華人民共和國", "B": "中華帝國", "C": "中國聯邦"}, "ans": "A"}, {"id": 17, "q": "中華人民共和國的國旗名稱是什麼？", "opts": {"A": "五星紅旗", "B": "青天白日旗", "C": "三色旗"}, "ans": "A"}, {"id": 18, "q": "國歌《義勇軍進行曲》的作曲者是誰？", "opts": {"A": "聶耳", "B": "田漢", "C": "冼星海"}, "ans": "A"}, {"id": 19, "q": "國歌《義勇軍進行曲》的作詞者是誰？", "opts": {"A": "田漢", "B": "聶耳", "C": "徐志摩"}, "ans": "A"}, {"id": 20, "q": "國家憲法日是在哪一年確定的？", "opts": {"A": "2014 年", "B": "2000 年", "C": "1997 年"}, "ans": "A"}, {"id": 21, "q": "憲法規定，國家的主權屬於誰？", "opts": {"A": "全體人民", "B": "少數人", "C": "外國政府"}, "ans": "A"}, {"id": 22, "q": "國徽上的麥稻穗象徵什麼？", "opts": {"A": "廣大農民", "B": "工人階級", "C": "商人"}, "ans": "A"}, {"id": 23, "q": "國徽上的齒輪象徵什麼？", "opts": {"A": "工人階級", "B": "學生", "C": "軍人"}, "ans": "A"}, {"id": 24, "q": "我國的官方語言文字是什麼？", "opts": {"A": "普通話和規範漢字", "B": "英語", "C": "粵語"}, "ans": "A"}, {"id": 25, "q": "憲法規定公民有受教育的什麼？", "opts": {"A": "權利和義務", "B": "只有權利", "C": "只有義務"}, "ans": "A"}, {"id": 26, "q": "我國的行政區域劃分中，香港屬於什麼？", "opts": {"A": "特別行政區", "B": "直轄市", "C": "省"}, "ans": "A"}, {"id": 27, "q": "我國的國旗、國徽、國歌代表什麼？", "opts": {"A": "國家的尊嚴和象徵", "B": "普通裝飾", "C": "學校標誌"}, "ans": "A"}, {"id": 28, "q": "憲法規定公民有遵守法律的什麼？", "opts": {"A": "義務", "B": "選擇權", "C": "興趣"}, "ans": "A"}, {"id": 29, "q": "在國旗升起時，大家應該眼神看著哪裡？", "opts": {"A": "注視國旗", "B": "看地面", "C": "看天空"}, "ans": "A"}, {"id": 30, "q": "中華人民共和國成立於哪一年？", "opts": {"A": "1949 年", "B": "1997 年", "C": "1911 年"}, "ans": "A"}, {"id": 31, "q": "公民有愛護國家財產的什麼？", "opts": {"A": "義務", "B": "權利", "C": "特權"}, "ans": "A"}, {"id": 32, "q": "中華人民共和國的全國陸地面積大約是多少萬平方公里？", "opts": {"A": "960 萬", "B": "500 萬", "C": "1000 萬"}, "ans": "A"}, {"id": 33, "q": "國家標誌包括什麼？", "opts": {"A": "國旗、國徽、國歌", "B": "校旗、校徽", "C": "公司標誌"}, "ans": "A"}, {"id": 34, "q": "憲法規定，國家保護環境和什麼？", "opts": {"A": "生態環境", "B": "遊戲機", "C": "名牌衣物"}, "ans": "A"}, {"id": 35, "q": "我國的根本制度是什麼制度？", "opts": {"A": "社會主義制度", "B": "資本主義制度", "C": "君主立憲制"}, "ans": "A"}, {"id": 36, "q": "憲法修改需要由誰通過？", "opts": {"A": "全國人民代表大會", "B": "香港立法會", "C": "區議會"}, "ans": "A"}, {"id": 37, "q": "憲法具有最高的什麼效力？", "opts": {"A": "法律效力", "B": "行政效力", "C": "商業效力"}, "ans": "A"}, {"id": 38, "q": "國家憲法日宣傳教育活動的主要目的是什麼？", "opts": {"A": "增強全社會的憲法意識", "B": "慶祝生日", "C": "增加假期"}, "ans": "A"}, {"id": 39, "q": "維護國家統一和民族團結是公民的什麼？", "opts": {"A": "神聖義務", "B": "個人興趣", "C": "可有可無的事"}, "ans": "A"}, {"id": 40, "q": "在香港，遇到升國旗儀式時應該怎樣？", "opts": {"A": "原地肅立", "B": "快步離開", "C": "拿出手機玩遊戲"}, "ans": "A"}, {"id": 41, "q": "《基本法》是在哪一年正式頒佈的？", "opts": {"A": "1990 年", "B": "1997 年", "C": "2019 年"}, "ans": "A"}, {"id": 42, "q": "香港特別行政區於哪一年哪一月哪一日成立？", "opts": {"A": "1997 年7 月1 日", "B": "1999 年12 月20 日", "C": "1949 年10 月1 日"}, "ans": "A"}, {"id": 43, "q": "“一國兩制”中的“一國”是指什麼？", "opts": {"A": "中華人民共和國", "B": "英國", "C": "美國"}, "ans": "A"}, {"id": 44, "q": "香港特別行政區的區旗是什麼顏色？", "opts": {"A": "紅色", "B": "藍色", "C": "黃色"}, "ans": "A"}, {"id": 45, "q": "香港區旗中間的花紋是什麼花？", "opts": {"A": "紫荊花", "B": "桃花", "C": "菊花"}, "ans": "A"}, {"id": 46, "q": "紫荊花圖案上有多少顆小五角星？", "opts": {"A": "5 顆", "B": "4 顆", "C": "3 顆"}, "ans": "A"}, {"id": 47, "q": "香港特別行政區的首長稱爲什麼？", "opts": {"A": "行政長官", "B": "省長", "C": "市長"}, "ans": "A"}, {"id": 48, "q": "香港特別行政區的終審權屬於誰？", "opts": {"A": "香港特別行政區終審法院", "B": "英國最高法院", "C": "美國法院"}, "ans": "A"}, {"id": 49, "q": "香港特別行政區使用的貨幣是什麼？", "opts": {"A": "港幣", "B": "人民幣", "C": "美元"}, "ans": "A"}, {"id": 50, "q": "香港特別行政區的官方語言是中文和什麼？", "opts": {"A": "英文", "B": "法文", "C": "日文"}, "ans": "A"}, {"id": 51, "q": "《基本法》的制定依據是哪部法律？", "opts": {"A": "《中華人民共和國憲法》", "B": "《香港法例》", "C": "《國際法》"}, "ans": "A"}, {"id": 52, "q": "香港特別行政區實行什麼樣的社會制度？", "opts": {"A": "資本主義制度", "B": "社會主義制度", "C": "封建制度"}, "ans": "A"}, {"id": 53, "q": "香港居民在法律面前一律什麼？", "opts": {"A": "平等", "B": "不平等", "C": "視乎財富"}, "ans": "A"}, {"id": 54, "q": "香港特別行政區區徽的形狀是什麼？", "opts": {"A": "圓形", "B": "方形", "C": "三角形"}, "ans": "A"}, {"id": 55, "q": "香港特別行政區的行政機關是什麼？", "opts": {"A": "香港特別行政區政府", "B": "立法會", "C": "終審法院"}, "ans": "A"}, {"id": 56, "q": "香港特別行政區的立法機關是什麼？", "opts": {"A": "立法會", "B": "行政會議", "C": "區域市政局"}, "ans": "A"}, {"id": 57, "q": "《基本法》全稱是什麼？", "opts": {"A": "《中華人民共和國香港特別行政區基本法》", "B": "《香港基本法規》", "C": "《香港特區自治法》"}, "ans": "A"}, {"id": 58, "q": "香港居民享有什麼自由？", "opts": {"A": "言論、新聞、出版等自由", "B": "不遵守法律的自由", "C": "破壞公物的自由"}, "ans": "A"}, {"id": 59, "q": "香港特別行政區保持原有的什麼制度和生活方式？", "opts": {"A": "資本主義制度", "B": "集體農場制度", "C": "配給制度"}, "ans": "A"}, {"id": 60, "q": "《基本法》規定香港特別行政區不實行什麼制度？", "opts": {"A": "社會主義制度和政策", "B": "資本主義制度", "C": "法治制度"}, "ans": "A"}, {"id": 61, "q": "香港居民有依法遵守法律的什麼？", "opts": {"A": "義務", "B": "權利", "C": "選項"}, "ans": "A"}, {"id": 62, "q": "香港特別行政區的區旗圖案是什麼？", "opts": {"A": "五星花蕊的紫荊花", "B": "洋紫荊", "C": "玫瑰花"}, "ans": "A"}, {"id": 63, "q": "香港特別行政區保持財政獨立，稅收如何處理？", "opts": {"A": "全部用於自身需要", "B": "上繳中央", "C": "交給外國"}, "ans": "A"}, {"id": 64, "q": "香港特別行政區的防務由誰負責？", "opts": {"A": "中央人民政府（駐軍）", "B": "香港警察", "C": "外國軍隊"}, "ans": "A"}, {"id": 65, "q": "香港特別行政區的外交事務由誰負責？", "opts": {"A": "中央人民政府", "B": "香港特區政府", "C": "聯合國"}, "ans": "A"}, {"id": 66, "q": "《基本法》保護香港居民的什麼財產？", "opts": {"A": "私有財產權", "B": "只有公有財產", "C": "外國財產"}, "ans": "A"}, {"id": 67, "q": "每年7 月1 日香港會慶祝什麼？", "opts": {"A": "香港特別行政區成立紀念日", "B": "國慶日", "C": "元旦"}, "ans": "A"}, {"id": 68, "q": "香港特別行政區區徽標誌上的文字是什麼？", "opts": {"A": "中華人民共和國香港特別行政區", "B": "香港政府", "C": "香港市"}, "ans": "A"}, {"id": 69, "q": "香港居民有依法納稅的什麼？", "opts": {"A": "義務", "B": "特權", "C": "興趣"}, "ans": "A"}, {"id": 70, "q": "香港特別行政區的法例不能抵觸什麼？", "opts": {"A": "《基本法》和《憲法》", "B": "外國法律", "C": "個人意願"}, "ans": "A"}, {"id": 71, "q": "《香港國安法》於哪一年頒布實施？", "opts": {"A": "2020 年", "B": "1997 年", "C": "2010 年"}, "ans": "A"}, {"id": 72, "q": "每年的哪一天是「全民國家安全教育日」？", "opts": {"A": "4 月15 日", "B": "7 月1 日", "C": "10 月1 日"}, "ans": "A"}, {"id": 73, "q": "維護國家安全是全中國人民包括誰的共同義務？", "opts": {"A": "香港同胞", "B": "外國遊客", "C": "只有軍人"}, "ans": "A"}, {"id": 74, "q": "《香港國安法》旨在防範、制止和懲治幾類危害國家安全的犯罪？", "opts": {"A": "四類", "B": "二類", "C": "十類"}, "ans": "A"}, {"id": 75, "q": "分裂國家罪是屬於危害什麼的行為？", "opts": {"A": "國家安全", "B": "道路安全", "C": "食品安全"}, "ans": "A"}, {"id": 76, "q": "香港特別行政區維護國家安全委員會的主席是誰？", "opts": {"A": "行政長官", "B": "警務處處長", "C": "律政司司長"}, "ans": "A"}, {"id": 77, "q": "維護國家安全主要是為了保護誰的安全和福祉？", "opts": {"A": "全體市民和國家", "B": "少數富人", "C": "外國公司"}, "ans": "A"}, {"id": 78, "q": "在學校推廣國家安全教育有助於增強學生的什麼意識？", "opts": {"A": "國家安全和守法意識", "B": "消費意識", "C": "遊戲技巧"}, "ans": "A"}, {"id": 79, "q": "破壞國家統一、分裂國家的行為是法律所什麼的？", "opts": {"A": "禁止和懲治的", "B": "鼓勵的", "C": "無所謂的"}, "ans": "A"}, {"id": 80, "q": "顛覆國家政權罪是指故意破壞或推翻什麼？", "opts": {"A": "國家政權制度", "B": "學校規則", "C": "交通規則"}, "ans": "A"}, {"id": 81, "q": "勾結外國或者境外勢力危害國家安全是屬於什麼行為？", "opts": {"A": "違法犯罪行為", "B": "正常商業行為", "C": "體育競技行為"}, "ans": "A"}, {"id": 82, "q": "恐怖活動罪是指實施恐怖活動危害什麼？", "opts": {"A": "公共安全和國家安全", "B": "個人衛生", "C": "校園秩序"}, "ans": "A"}, {"id": 83, "q": "香港市民發現懷疑危害國家安全的行為時應該怎樣做？", "opts": {"A": "向警方舉報", "B": "參與其中", "C": "幫忙隱瞞"}, "ans": "A"}, {"id": 84, "q": "《香港國安法》的實施令香港社會恢復了什麼？", "opts": {"A": "穩定與和平", "B": "混亂", "C": "緊張"}, "ans": "A"}, {"id": 85, "q": "香港特別行政區設有哪個部門專責維護國家安全的警務工作？", "opts": {"A": "警務處國家安全處", "B": "消防處", "C": "入境處"}, "ans": "A"}, {"id": 86, "q": "遵守《香港國安法》是保障香港長期什麼的重要基礎？", "opts": {"A": "繁榮穩定", "B": "經濟衰退", "C": "交通繁忙"}, "ans": "A"}, {"id": 87, "q": "國家安全涵蓋哪些方面？", "opts": {"A": "網絡安全、生態安全、經濟安全等", "B": "只有軍事", "C": "只有體育"}, "ans": "A"}, {"id": 88, "q": "愛護香港、維護國家安全是每位市民的什麼？", "opts": {"A": "責任和義務", "B": "負擔", "C": "可選項目"}, "ans": "A"}, {"id": 89, "q": "香港國安法的制定是為了保障香港廣大市民的什麼？", "opts": {"A": "合法權利與自由", "B": "特權", "C": "遊樂時間"}, "ans": "A"}, {"id": 90, "q": "在網絡上發表危害國家安全的言論是屬於什麼行為？", "opts": {"A": "違法行為", "B": "自由活動", "C": "娛樂行為"}, "ans": "A"}, {"id": 91, "q": "市民共同維護國家安全可以使社會更加怎樣？", "opts": {"A": "安居樂業", "B": "動盪不安", "C": "危險"}, "ans": "A"}, {"id": 92, "q": "全民國家安全教育日的設立旨在提高市民的什麼？", "opts": {"A": "國家安全意識", "B": "購物興趣", "C": "運動水平"}, "ans": "A"}, {"id": 93, "q": "維護國家主權、統一和領土完整是誰的責任？", "opts": {"A": "全中國人民的共同義務", "B": "外國人的義務", "C": "只有政府的事"}, "ans": "A"}, {"id": 94, "q": "香港特區維護國家安全委員會負責什麼工作？", "opts": {"A": "規劃特區維護國家安全工作", "B": "安排旅遊景點", "C": "管理巴士路線"}, "ans": "A"}, {"id": 95, "q": "國家安全得到保障，香港的商業環境會怎樣？", "opts": {"A": "更加穩定和具吸引力", "B": "變差", "C": "無影響"}, "ans": "A"}, {"id": 96, "q": "遵守法律、愛護國家是每個好公民的什麼？", "opts": {"A": "表現", "B": "錯誤", "C": "負擔"}, "ans": "A"}, {"id": 97, "q": "《香港國安法》規定尊重和保障什麼？", "opts": {"A": "人權", "B": "特權", "C": "違法權利"}, "ans": "A"}, {"id": 98, "q": "維護國家安全有助於維護香港的什麼？", "opts": {"A": "法治與秩序", "B": "混亂", "C": "衝突"}, "ans": "A"}, {"id": 99, "q": "學校進行國旗升旗儀式有助培育學生的什麼？", "opts": {"A": "愛國情懷", "B": "體育競技", "C": "唱歌興趣"}, "ans": "A"}, {"id": 100, "q": "國家安全關乎我們每一個人的什麼？", "opts": {"A": "切身利益與生活", "B": "無關緊要", "C": "娛樂活動"}, "ans": "A"}]};
+
+(function(){
+'use strict';
+const DATA = window.SANFA_DATA;
+const SAVE_KEY = 'sanfa-guard-v1';
+const IDS = [
+  {id:'star', emo:'⭐', name:'小星星'},
+  {id:'shield', emo:'🛡️', name:'小盾牌'},
+  {id:'rocket', emo:'🚀', name:'小火箭'},
+  {id:'guest', emo:'🙂', name:'訪客'}
+];
+
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const y = new Date().getFullYear();
+$('#y').textContent = y;
+
+const state = {
+  screen:'home',
+  player:null,
+  unlocked:1,
+  cleared:{}, // stageId -> {wrong, bestStreak}
+  totalWrong:0,
+  totalCorrect:0,
+  stageId:1,
+  idx:0, // 0..9 within stage
+  qOrder:[],
+  streak:0,
+  stageWrong:0,
+  locked:false,
+  bullets:[],
+  particles:[],
+  raf:0
+};
+
+function load(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ return null; }
+}
+function save(){
+  const data = {
+    player: state.player,
+    unlocked: state.unlocked,
+    cleared: state.cleared,
+    totalWrong: state.totalWrong,
+    totalCorrect: state.totalCorrect
+  };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+}
+function applySave(s){
+  if(!s) return;
+  state.player = s.player || null;
+  state.unlocked = s.unlocked || 1;
+  state.cleared = s.cleared || {};
+  state.totalWrong = s.totalWrong || 0;
+  state.totalCorrect = s.totalCorrect || 0;
+}
+
+function show(id){
+  $$('.screen').forEach(el=>el.classList.toggle('on', el.id==='sc-'+id));
+  state.screen = id;
+  if(id!=='play') stopLoop();
+}
+
+function toast(msg){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>t.classList.remove('on'), 900);
+}
+
+function beep(ok){
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    if(!beep.ctx) beep.ctx = new AC();
+    const ctx = beep.ctx;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = ok ? 'triangle' : 'sawtooth';
+    o.frequency.value = ok ? 660 : 180;
+    g.gain.value = 0.04;
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + (ok?0.18:0.12));
+    o.stop(ctx.currentTime + 0.2);
+  }catch(e){}
+}
+
+function fanfare(){
+  [523,659,784,1046].forEach((f,i)=>{
+    setTimeout(()=>{
+      try{
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if(!AC) return;
+        if(!beep.ctx) beep.ctx = new AC();
+        const ctx = beep.ctx;
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type='square'; o.frequency.value=f;
+        g.gain.value=0.03; o.connect(g); g.connect(ctx.destination);
+        o.start(); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.2);
+        o.stop(ctx.currentTime+0.22);
+      }catch(e){}
+    }, i*120);
+  });
+}
+
+function speak(text){
+  try{
+    if(!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'zh-HK';
+    u.rate = 0.92;
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+function qById(id){
+  return DATA.questions.find(q=>q.id===id);
+}
+
+function stageMeta(id){
+  return DATA.stages.find(s=>s.id===id);
+}
+
+function allCleared(){
+  return DATA.stages.every(s=>!!state.cleared[s.id]);
+}
+
+function rankInfo(){
+  const w = state.totalWrong|0;
+  // 100題：金≤5 銀≤15 銅其餘（仍鼓勵低錯）
+  if(w<=5) return {name:'金獎', emoji:'🥇', cls:'gold'};
+  if(w<=15) return {name:'銀獎', emoji:'🥈', cls:'silver'};
+  return {name:'銅獎', emoji:'🥉', cls:'bronze'};
+}
+
+/* ===== HOME ===== */
+function initHome(){
+  const s = load();
+  if(s && s.player){
+    $('#btn-continue').style.display = 'block';
+  }
+}
+$('#btn-start').onclick = ()=>{
+  state.player=null; state.unlocked=1; state.cleared={}; state.totalWrong=0; state.totalCorrect=0;
+  renderId(); show('id');
+};
+$('#btn-continue').onclick = ()=>{
+  applySave(load());
+  if(!state.player){ renderId(); show('id'); return; }
+  renderMap(); show('map');
+};
+
+/* ===== ID ===== */
+function renderId(){
+  const g = $('#id-grid');
+  g.innerHTML = '';
+  IDS.forEach(p=>{
+    const b = document.createElement('button');
+    b.type='button'; b.className='id-card'+(state.player&&state.player.id===p.id?' on':'');
+    b.innerHTML = `<span class="emo">${p.emo}</span>${p.name}`;
+    b.onclick = ()=>{
+      state.player = p;
+      $$('.id-card').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      $('#btn-id-go').disabled = false;
+      beep(true);
+    };
+    g.appendChild(b);
+  });
+  $('#btn-id-go').disabled = !state.player;
+}
+$('#btn-id-go').onclick = ()=>{
+  if(!state.player) return;
+  save(); renderMap(); show('map');
+};
+
+/* ===== MAP ===== */
+function renderMap(){
+  $('#map-player').textContent = (state.player? state.player.emo+' '+state.player.name : '守護者');
+  const clearedN = Object.keys(state.cleared).length;
+  $('#map-stats').textContent = `✅ ${clearedN}/10 · 錯 ${state.totalWrong}`;
+  const g = $('#map-grid');
+  g.innerHTML = '';
+  DATA.stages.forEach(st=>{
+    const locked = st.id > state.unlocked;
+    const cleared = !!state.cleared[st.id];
+    const b = document.createElement('button');
+    b.type='button';
+    b.className = `stage theme-${st.theme}${locked?' locked':''}${cleared?' cleared':''}`;
+    b.innerHTML = `<div class="n">關卡 ${st.id} · 題${st.from}–${st.to}</div>
+      <div class="t">${st.title}</div>
+      <div class="s">${st.sub}</div>
+      <div class="st">${locked?'🔒 未解鎖':(cleared?'⭐ 已完成':'▶ 可挑戰')}</div>`;
+    b.onclick = ()=>{
+      if(locked){ toast('先打前面關'); beep(false); return; }
+      startStage(st.id);
+    };
+    g.appendChild(b);
+  });
+  $('#btn-map-cert').style.display = allCleared() ? 'block' : 'none';
+}
+$('#btn-map-home').onclick = ()=> show('home');
+$('#btn-map-cert').onclick = ()=> openCert();
+
+/* ===== PLAY ===== */
+const cv = $('#cv');
+const ctx = cv.getContext('2d');
+
+function resizeCv(){
+  const arena = $('#arena');
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  const w = arena.clientWidth, h = arena.clientHeight;
+  cv.width = Math.max(1, Math.floor(w*dpr));
+  cv.height = Math.max(1, Math.floor(h*dpr));
+  cv.style.width = w+'px'; cv.style.height = h+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+function startStage(id){
+  const st = stageMeta(id);
+  state.stageId = id;
+  state.idx = 0;
+  state.streak = 0;
+  state.stageWrong = 0;
+  state.locked = false;
+  state.bullets = [];
+  state.particles = [];
+  // fixed order within stage (by id) — stable for teacher
+  state.qOrder = [];
+  for(let i=st.from;i<=st.to;i++) state.qOrder.push(i);
+  $('#arena').className = 'arena theme-'+st.theme;
+  $('#hud-stage').textContent = st.title;
+  show('play');
+  resizeCv();
+  renderQuestion();
+  startLoop();
+}
+
+function currentQ(){
+  return qById(state.qOrder[state.idx]);
+}
+
+function renderQuestion(){
+  const q = currentQ();
+  const st = stageMeta(state.stageId);
+  $('#q-id').textContent = `${st.title} · 第 ${state.idx+1}/10 題 · 總題 ${q.id}`;
+  $('#q-text').textContent = q.q;
+  $('#hud-prog').textContent = `${state.idx+1}/10`;
+  $('#hud-streak').textContent = `🔥 ${state.streak}`;
+  $('#hud-wrong').textContent = `錯 ${state.stageWrong}`;
+  const box = $('#targets');
+  box.innerHTML = '';
+  // keep A/B/C visual order stable for gesture; content is already A/B/C from bank
+  // shuffle display order but badge follows render order letters
+  const keys = ['A','B','C'];
+  // SEN: shuffle options but labels A/B/C follow on-screen order
+  const entries = keys.map(k=>({src:k, text:q.opts[k]}));
+  for(let i=entries.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    const t = entries[i]; entries[i]=entries[j]; entries[j]=t;
+  }
+  const mapLetter = {}; // display letter -> source key
+  entries.forEach((e,i)=>{
+    const letter = keys[i];
+    mapLetter[letter] = e.src;
+    const el = document.createElement('button');
+    el.type='button';
+    el.className='tgt';
+    el.dataset.k = letter;
+    el.dataset.src = e.src;
+    el.innerHTML = `<span class="badge">${letter}</span><span class="otxt"></span>`;
+    el.querySelector('.otxt').textContent = e.text;
+    el.addEventListener('click', ()=> tryAnswer(letter, e.src, el));
+    box.appendChild(el);
+  });
+  state.letterMap = mapLetter; // display -> src
+  state.ansDisplay = null;
+  // find which display letter is correct
+  for(const L of keys){
+    if(mapLetter[L]===q.ans) state.ansDisplay = L;
+  }
+  state.locked = false;
+}
+
+function tryAnswer(displayLetter, srcKey, el){
+  if(state.locked || state.screen!=='play') return;
+  const q = currentQ();
+  const ok = srcKey === q.ans;
+  const robot = $('#robot');
+  // shoot visual toward target
+  shootTo(el, ok);
+  if(ok){
+    state.locked = true;
+    el.classList.add('flash-good');
+    robot.classList.add('happy');
+    state.streak += 1;
+    state.totalCorrect += 1;
+    beep(true);
+    burst(el, state.streak>=3?'💥✨':'✨');
+    toast(state.streak>=3?`連對 ${state.streak}！`:'答對！');
+    setTimeout(()=>{
+      robot.classList.remove('happy');
+      nextQ();
+    }, 650);
+  }else{
+    el.classList.add('flash-bad');
+    robot.classList.add('shoot');
+    state.streak = 0;
+    state.stageWrong += 1;
+    state.totalWrong += 1;
+    beep(false);
+    toast('再試！');
+    $('#hud-streak').textContent = `🔥 0`;
+    $('#hud-wrong').textContent = `錯 ${state.stageWrong}`;
+    setTimeout(()=>{
+      el.classList.remove('flash-bad');
+      robot.classList.remove('shoot');
+    }, 380);
+    save();
+  }
+  $('#hud-streak').textContent = `🔥 ${state.streak}`;
+}
+
+function nextQ(){
+  if(state.idx >= 9){
+    // clear stage
+    state.cleared[state.stageId] = {
+      wrong: state.stageWrong,
+      streak: state.streak
+    };
+    if(state.unlocked < Math.min(10, state.stageId+1)){
+      state.unlocked = Math.min(10, state.stageId+1);
+    }
+    // always unlock next if cleared
+    state.unlocked = Math.max(state.unlocked, Math.min(10, state.stageId+1));
+    save();
+    fanfare();
+    const st = stageMeta(state.stageId);
+    $('#clear-title').textContent = `${st.title} 過關！`;
+    $('#clear-msg').textContent = allCleared()
+      ? `100 題完成！今關錯 ${state.stageWrong} 次`
+      : `今關錯 ${state.stageWrong} 次 · 已解鎖下一關`;
+    $('#ov-clear').classList.add('on');
+    stopLoop();
+    return;
+  }
+  state.idx += 1;
+  renderQuestion();
+}
+
+$('#btn-clear-ok').onclick = ()=>{
+  $('#ov-clear').classList.remove('on');
+  if(allCleared()){ openCert(); return; }
+  renderMap(); show('map');
+};
+
+$('#btn-play-back').onclick = ()=>{
+  save(); stopLoop(); renderMap(); show('map');
+};
+
+$$('.vk button[data-k]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const L = btn.getAttribute('data-k');
+    const el = $(`.tgt[data-k="${L}"]`);
+    if(!el) return;
+    tryAnswer(L, el.dataset.src, el);
+  });
+});
+$('#btn-speak').onclick = ()=>{
+  const q = currentQ();
+  if(!q) return;
+  const parts = [q.q];
+  // read in display order
+  $$('#targets .tgt').forEach(t=>{
+    parts.push(t.dataset.k + '，' + t.querySelector('.otxt').textContent);
+  });
+  speak(parts.join('。'));
+};
+
+window.addEventListener('keydown', (e)=>{
+  if(state.screen!=='play') return;
+  const k = e.key.toUpperCase();
+  if(k==='A'||k==='B'||k==='C'){
+    e.preventDefault();
+    const el = $(`.tgt[data-k="${k}"]`);
+    if(el) tryAnswer(k, el.dataset.src, el);
+  }
+});
+
+function shootTo(el, ok){
+  const arena = $('#arena');
+  const ar = arena.getBoundingClientRect();
+  const rr = $('#robot').getBoundingClientRect();
+  const tr = el.getBoundingClientRect();
+  const x0 = rr.left + rr.width/2 - ar.left;
+  const y0 = rr.top + rr.height*0.2 - ar.top;
+  const x1 = tr.left + tr.width/2 - ar.left;
+  const y1 = tr.top + tr.height/2 - ar.top;
+  state.bullets.push({
+    x:x0,y:y0,x1,y1,t:0,life:1, ok,
+    color: ok ? '#ffd34e' : '#ff6b6b'
+  });
+  $('#robot').classList.add('shoot');
+  setTimeout(()=>$('#robot').classList.remove('shoot'), 120);
+  const fx = $('#fx');
+  fx.style.setProperty('--x', (x1/ar.width*100)+'%');
+  fx.style.setProperty('--y', (y1/ar.height*100)+'%');
+  fx.classList.add('on');
+  setTimeout(()=>fx.classList.remove('on'), 180);
+  if(ok){
+    for(let i=0;i<10;i++){
+      state.particles.push({
+        x:x1,y:y1,
+        vx:(Math.random()-0.5)*6,
+        vy:(Math.random()-0.5)*6-2,
+        life:1,
+        c: ['#ffd34e','#fff','#3dde8c','#5b8cff'][i%4]
+      });
+    }
+  }
+}
+
+function burst(el, emo){
+  const arena = $('#arena');
+  const ar = arena.getBoundingClientRect();
+  const tr = el.getBoundingClientRect();
+  const d = document.createElement('div');
+  d.className='burst';
+  d.textContent = emo;
+  d.style.left = (tr.left+tr.width/2-ar.left)+'px';
+  d.style.top = (tr.top+tr.height/2-ar.top)+'px';
+  arena.appendChild(d);
+  setTimeout(()=>d.remove(), 700);
+}
+
+function startLoop(){
+  stopLoop();
+  const loop = ()=>{
+    draw();
+    state.raf = requestAnimationFrame(loop);
+  };
+  state.raf = requestAnimationFrame(loop);
+}
+function stopLoop(){
+  if(state.raf) cancelAnimationFrame(state.raf);
+  state.raf = 0;
+}
+
+function draw(){
+  const arena = $('#arena');
+  const w = arena.clientWidth, h = arena.clientHeight;
+  if(!w||!h) return;
+  ctx.clearRect(0,0,w,h);
+  // subtle stars
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  for(let i=0;i<18;i++){
+    const x = (i*97 + (Date.now()/40)) % w;
+    const y = (i*53) % (h*0.55);
+    ctx.beginPath(); ctx.arc(x,y,1.2,0,Math.PI*2); ctx.fill();
+  }
+  // bullets
+  state.bullets = state.bullets.filter(b=>{
+    b.t += 0.12;
+    const t = Math.min(1, b.t);
+    const x = b.x + (b.x1-b.x)*t;
+    const y = b.y + (b.y1-b.y)*t;
+    ctx.strokeStyle = b.color;
+    ctx.lineWidth = 4;
+    ctx.shadowColor = b.color;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(x,y);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill();
+    return t < 1;
+  });
+  // particles
+  state.particles = state.particles.filter(p=>{
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.03;
+    ctx.globalAlpha = Math.max(0,p.life);
+    ctx.fillStyle = p.c;
+    ctx.beginPath(); ctx.arc(p.x,p.y,3.5,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    return p.life > 0;
+  });
+}
+
+window.addEventListener('resize', ()=>{ if(state.screen==='play') resizeCv(); });
+
+/* ===== CERT ===== */
+function openCert(){
+  const r = rankInfo();
+  const name = state.player ? (state.player.emo+' '+state.player.name) : '同學';
+  const detail = `完成 100 題 · 總錯 ${state.totalWrong} 次 · 總對 ${state.totalCorrect} 次`;
+  $('#cert-rank').textContent = r.emoji+' '+r.name;
+  $('#cert-name').textContent = name;
+  $('#cert-detail').textContent = detail;
+  $('#p-rank').textContent = r.emoji+' '+r.name;
+  $('#p-name').textContent = name;
+  $('#p-detail').textContent = detail;
+  $('#p-date').textContent = new Date().toLocaleDateString('zh-HK');
+  show('cert');
+}
+$('#btn-print').onclick = ()=> window.print();
+$('#btn-cert-map').onclick = ()=>{ renderMap(); show('map'); };
+
+// boot
+initHome();
+// prevent scroll bounce
+document.addEventListener('touchmove', e=>{
+  if(e.target.closest && e.target.closest('.map-grid')) return;
+  e.preventDefault();
+},{passive:false});
+})();
+</script>
+</body>
+</html>
