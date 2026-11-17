@@ -115,6 +115,32 @@ img{pointer-events:none;-webkit-user-drag:none;}
 @keyframes burst{0%{transform:translate(-50%,-50%) scale(.6);opacity:1}100%{transform:translate(-50%,-120%) scale(1.4);opacity:0}}
 .footer-note{text-align:center;font-size:11px;color:var(--muted);margin-top:8px;}
 #cert-print-root{display:none;}
+
+/* review mode */
+#sc-review{background:linear-gradient(180deg,#0e2248,#0b1b3a);}
+.rev-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;}
+.rev-tabs button{flex:1;min-width:72px;padding:10px 8px;border-radius:14px;font-weight:800;font-size:14px;
+  background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.12);}
+.rev-tabs button.on{background:rgba(255,211,78,.2);border-color:var(--accent);color:#fff6d0;}
+.rev-card{flex:1;min-height:0;overflow:auto;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.12);
+  border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:12px;}
+.rev-q{font-size:clamp(18px,4.5vw,26px);font-weight:900;line-height:1.35;}
+.rev-opts{display:flex;flex-direction:column;gap:10px;}
+.rev-opt{display:flex;align-items:flex-start;gap:12px;text-align:left;padding:14px 12px;border-radius:16px;
+  background:rgba(255,255,255,.08);border:3px solid rgba(255,255,255,.14);font-weight:800;font-size:clamp(15px,3.6vw,20px);line-height:1.3;}
+.rev-opt .b{flex:0 0 44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:22px;color:#fff;}
+.rev-opt[data-k=A] .b{background:var(--a)}
+.rev-opt[data-k=B] .b{background:var(--b)}
+.rev-opt[data-k=C] .b{background:var(--c)}
+.rev-opt.ok{border-color:var(--good);background:rgba(61,222,140,.18);}
+.rev-opt.bad{border-color:var(--bad);background:rgba(255,107,107,.14);}
+.rev-opt.show-ans{border-color:var(--good);box-shadow:0 0 0 2px rgba(61,222,140,.35);}
+.rev-fb{min-height:28px;font-weight:900;font-size:18px;text-align:center;}
+.rev-fb.ok{color:var(--good)}
+.rev-fb.bad{color:#ffb4b4}
+.rev-nav{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.rev-nav .btn{padding:12px 10px;font-size:16px;}
+
 @media print{
   body *{visibility:hidden !important;}
   #cert-print-root, #cert-print-root *{visibility:visible !important;}
@@ -175,8 +201,9 @@ img{pointer-events:none;-webkit-user-drag:none;}
         <div style="font-size:18px;font-weight:900;margin-bottom:6px;">打中正確答案 · 守護香港</div>
         <div class="hint">10 關 × 10 題＝100 題全清 · 可中途儲存</div>
       </div>
-      <button class="btn wide" id="btn-start" type="button">開始</button>
-      <button class="btn ghost wide" id="btn-continue" type="button" style="display:none">繼續上次</button>
+      <button class="btn wide" id="btn-start" type="button">遊戲闖關</button>
+      <button class="btn good wide" id="btn-review" type="button">溫習模式</button>
+      <button class="btn ghost wide" id="btn-continue" type="button" style="display:none">繼續遊戲</button>
       <div class="toggle-row">
         <button type="button" class="toggle on" id="tog-auto-speak" aria-pressed="true"><span class="dot"></span>自動讀題 · 開</button>
       </div>
@@ -185,7 +212,7 @@ img{pointer-events:none;-webkit-user-drag:none;}
         <div class="info" id="voice-info">語音：未測</div>
       </div>
     </div>
-    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1.2-feel</div>
+    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1.3-review</div>
   </section>
 
   <!-- ID -->
@@ -213,6 +240,7 @@ img{pointer-events:none;-webkit-user-drag:none;}
       <button class="btn ghost" id="btn-map-home" type="button">主頁</button>
       <button class="btn good" id="btn-map-cert" type="button" style="display:none">睇證書</button>
     </div>
+    <button class="btn ghost wide" id="btn-map-review" type="button" style="margin-top:8px">溫習模式（無遊戲）</button>
   </section>
 
   <!-- PLAY -->
@@ -345,7 +373,8 @@ function saveSettings(){
 function syncSpeakToggles(){
   const on = !!state.autoSpeak;
   [['tog-auto-speak', on ? '自動讀題 · 開' : '自動讀題 · 關'],
-   ['tog-auto-speak-play', on ? '讀題 ON' : '讀題 OFF']].forEach(function(pair){
+   ['tog-auto-speak-play', on ? '讀題 ON' : '讀題 OFF'],
+   ['tog-auto-speak-rev', on ? '讀題 ON' : '讀題 OFF']].forEach(function(pair){
     const el = document.getElementById(pair[0]);
     if(!el) return;
     el.classList.toggle('on', on);
@@ -1079,6 +1108,164 @@ function draw(dt){
 window.addEventListener('resize', ()=>{ if(state.screen==='play') resizeCv(); });
 
 /* ===== CERT ===== */
+
+/* ===== REVIEW MODE（純溫習 · 無遊戲） ===== */
+const REV = {
+  part: 'all', // all|const|basic|nsl
+  list: [],
+  idx: 0,
+  answered: false,
+  revealed: false
+};
+function revFilterIds(part){
+  if(part==='const') return DATA.questions.filter(q=>q.id>=1 && q.id<=40);
+  if(part==='basic') return DATA.questions.filter(q=>q.id>=41 && q.id<=70);
+  if(part==='nsl') return DATA.questions.filter(q=>q.id>=71 && q.id<=100);
+  return DATA.questions.slice();
+}
+function enterReview(part){
+  REV.part = part || 'all';
+  REV.list = revFilterIds(REV.part);
+  REV.idx = 0;
+  REV.answered = false;
+  REV.revealed = false;
+  // tabs UI
+  $$('#rev-tabs button').forEach(b=>{
+    b.classList.toggle('on', b.getAttribute('data-part')===REV.part);
+  });
+  syncSpeakToggles();
+  show('review');
+  renderReview();
+}
+function revCurrent(){
+  return REV.list[REV.idx] || null;
+}
+function revSpeakText(){
+  const q = revCurrent();
+  if(!q) return '';
+  const parts = [q.q];
+  // display order A B C fixed in review (no shuffle — 溫習要穩定)
+  ['A','B','C'].forEach(function(L){
+    parts.push(L + '，' + q.opts[L]);
+  });
+  return parts.join('。');
+}
+function revAutoSpeak(){
+  if(!state.autoSpeak) return;
+  const t = revSpeakText();
+  if(!t) return;
+  setTimeout(function(){ speak(t); }, 200);
+}
+function renderReview(){
+  const q = revCurrent();
+  if(!q){
+    $('#rev-q').textContent = '呢部分冇題';
+    $('#rev-opts').innerHTML = '';
+    return;
+  }
+  REV.answered = false;
+  REV.revealed = false;
+  $('#rev-prog').textContent = (REV.idx+1) + '/' + REV.list.length;
+  $('#rev-qid').textContent = '總題 ' + q.id + ' · ' + (
+    q.id<=40 ? '憲法' : q.id<=70 ? '基本法' : '國安法'
+  );
+  $('#rev-q').textContent = q.q;
+  $('#rev-fb').textContent = '';
+  $('#rev-fb').className = 'rev-fb';
+  const box = $('#rev-opts');
+  box.innerHTML = '';
+  ['A','B','C'].forEach(function(L){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rev-opt';
+    b.dataset.k = L;
+    b.innerHTML = '<span class="b">'+L+'</span><span class="t"></span>';
+    b.querySelector('.t').textContent = q.opts[L];
+    b.onclick = function(){ revTry(L); };
+    box.appendChild(b);
+  });
+  revAutoSpeak();
+}
+function revTry(letter){
+  const q = revCurrent();
+  if(!q) return;
+  const ok = letter === q.ans;
+  // allow re-try until correct / reveal, but mark feedback
+  $$('#rev-opts .rev-opt').forEach(function(el){
+    el.classList.remove('ok','bad','show-ans');
+    if(el.dataset.k === letter){
+      el.classList.add(ok ? 'ok' : 'bad');
+    }
+  });
+  const fb = $('#rev-fb');
+  if(ok){
+    REV.answered = true;
+    fb.textContent = '啱喇 ✓';
+    fb.className = 'rev-fb ok';
+    beep(true);
+    speak('啱喇');
+    // reveal correct styling
+    $$('#rev-opts .rev-opt').forEach(function(el){
+      if(el.dataset.k === q.ans) el.classList.add('show-ans');
+    });
+  } else {
+    fb.textContent = '再試 · 或撳「睇答案」';
+    fb.className = 'rev-fb bad';
+    beep(false);
+    speak('再試啦');
+  }
+}
+function revReveal(){
+  const q = revCurrent();
+  if(!q) return;
+  REV.revealed = true;
+  REV.answered = true;
+  $$('#rev-opts .rev-opt').forEach(function(el){
+    el.classList.remove('bad');
+    if(el.dataset.k === q.ans) el.classList.add('ok','show-ans');
+  });
+  const fb = $('#rev-fb');
+  fb.textContent = '答案係 ' + q.ans + '：' + q.opts[q.ans];
+  fb.className = 'rev-fb ok';
+  speak('答案係' + q.ans + '，' + q.opts[q.ans]);
+}
+function revNext(delta){
+  if(!REV.list.length) return;
+  REV.idx = (REV.idx + delta + REV.list.length) % REV.list.length;
+  stopSpeak();
+  renderReview();
+}
+function wireReview(){
+  const br = $('#btn-review');
+  if(br) br.onclick = function(){ enterReview('all'); };
+  const bmr = $('#btn-map-review');
+  if(bmr) bmr.onclick = function(){ enterReview('all'); };
+  const home = $('#btn-rev-home');
+  if(home) home.onclick = function(){ stopSpeak(); show('home'); };
+  $$('#rev-tabs button').forEach(function(b){
+    b.onclick = function(){
+      enterReview(b.getAttribute('data-part')||'all');
+    };
+  });
+  const sp = $('#btn-rev-speak');
+  if(sp) sp.onclick = function(){ const t=revSpeakText(); if(t) speak(t); };
+  const tr = $('#tog-auto-speak-rev');
+  if(tr) tr.onclick = toggleAutoSpeak;
+  $('#btn-rev-prev').onclick = function(){ revNext(-1); };
+  $('#btn-rev-next').onclick = function(){ revNext(1); };
+  $('#btn-rev-reveal').onclick = function(){ revReveal(); };
+  // keys in review
+  window.addEventListener('keydown', function(e){
+    if(state.screen!=='review') return;
+    const k = e.key.toUpperCase();
+    if(k==='A'||k==='B'||k==='C'){ e.preventDefault(); revTry(k); }
+    if(e.key==='ArrowRight' || e.key==='Enter'){ e.preventDefault(); revNext(1); }
+    if(e.key==='ArrowLeft'){ e.preventDefault(); revNext(-1); }
+  });
+}
+wireReview();
+
+
 function openCert(){
   const r = rankInfo();
   const name = state.player ? (state.player.emo+' '+state.player.name) : '同學';
