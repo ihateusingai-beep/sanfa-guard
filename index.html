@@ -127,6 +127,35 @@ img{pointer-events:none;-webkit-user-drag:none;}
 .cert-sheet .meta{font-size:16px;margin-top:8px;}
 .fx-dim{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at var(--x,50%) var(--y,50%), rgba(255,211,78,.35), transparent 42%);opacity:0;transition:opacity .15s;}
 .fx-dim.on{opacity:1;}
+
+.prog-wrap{height:10px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;margin:6px 0 8px;}
+.prog-bar{height:100%;width:0%;background:linear-gradient(90deg,#ffd34e,#3dde8c);border-radius:999px;transition:width .35s ease;}
+.combo-banner{position:absolute;left:50%;top:4%;transform:translateX(-50%) scale(.8);opacity:0;pointer-events:none;z-index:7;
+  font-weight:900;font-size:clamp(18px,5vw,28px);color:#ffd34e;text-shadow:0 0 12px rgba(255,211,78,.8);transition:opacity .15s,transform .15s;}
+.combo-banner.on{opacity:1;transform:translateX(-50%) scale(1);}
+.edge-flash{position:absolute;inset:0;pointer-events:none;z-index:4;border-radius:22px;opacity:0;transition:opacity .12s;
+  box-shadow:inset 0 0 0 6px rgba(61,222,140,.85), inset 0 0 40px rgba(61,222,140,.35);}
+.edge-flash.bad{box-shadow:inset 0 0 0 6px rgba(255,107,107,.85), inset 0 0 40px rgba(255,107,107,.3);}
+.edge-flash.on{opacity:1;}
+.float-score{position:absolute;pointer-events:none;z-index:6;font-weight:900;font-size:22px;color:#ffd34e;
+  text-shadow:0 2px 0 #000;animation:floatScore .8s ease-out forwards;}
+@keyframes floatScore{0%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:0;transform:translate(-50%,-40px) scale(1.2)}}
+.tgt{transition:transform .12s, box-shadow .12s;}
+.tgt.power{box-shadow:0 0 0 4px rgba(255,211,78,.45),0 12px 28px rgba(0,0,0,.4);}
+.robot.power{filter:drop-shadow(0 0 12px #ffd34e) drop-shadow(0 6px 10px rgba(0,0,0,.45));}
+.toggle-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center;margin-top:10px;}
+.toggle{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;background:rgba(255,255,255,.1);
+  border:2px solid rgba(255,255,255,.18);font-weight:800;font-size:15px;cursor:pointer;user-select:none;}
+.toggle.on{background:rgba(61,222,140,.22);border-color:var(--good);color:#d7ffe8;}
+.toggle .dot{width:14px;height:14px;border-radius:50%;background:#888;}
+.toggle.on .dot{background:var(--good);box-shadow:0 0 8px var(--good);}
+.hud-toggle{padding:6px 10px;font-size:13px;min-height:auto;}
+.score-pill{background:rgba(255,211,78,.15)!important;color:var(--accent)!important;}
+@media (prefers-reduced-motion: reduce){
+  .tgt{animation:none!important;}
+  .combo-banner,.float-score,.burst{animation:none!important;}
+}
+
 </style>
 </head>
 <body oncontextmenu="return false;">
@@ -148,12 +177,15 @@ img{pointer-events:none;-webkit-user-drag:none;}
       </div>
       <button class="btn wide" id="btn-start" type="button">開始</button>
       <button class="btn ghost wide" id="btn-continue" type="button" style="display:none">繼續上次</button>
+      <div class="toggle-row">
+        <button type="button" class="toggle on" id="tog-auto-speak" aria-pressed="true"><span class="dot"></span>自動讀題 · 開</button>
+      </div>
       <div class="voice-bar">
         <button class="btn ghost" id="btn-voice-test" type="button" style="padding:10px 14px;font-size:15px">🔊 試語音</button>
         <div class="info" id="voice-info">語音：未測</div>
       </div>
     </div>
-    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1.1-tts</div>
+    <div class="footer-note">© <span id="y"></span> 將軍澳培智學校 · BUILD:sanfa-guard-v1.2-feel</div>
   </section>
 
   <!-- ID -->
@@ -189,9 +221,12 @@ img{pointer-events:none;-webkit-user-drag:none;}
       <button class="btn ghost" id="btn-play-back" type="button" style="padding:8px 12px;font-size:14px">← 地圖</button>
       <span class="stat" id="hud-stage">第1關</span>
       <span class="stat" id="hud-prog">1/10</span>
+      <span class="stat score-pill" id="hud-score">⭐ 0</span>
       <span class="stat" id="hud-streak">🔥 0</span>
       <span class="stat" id="hud-wrong">錯 0</span>
+      <button type="button" class="toggle on hud-toggle" id="tog-auto-speak-play" aria-pressed="true"><span class="dot"></span>讀題 ON</button>
     </div>
+    <div class="prog-wrap" aria-hidden="true"><div class="prog-bar" id="prog-bar"></div></div>
     <div class="qbox">
       <div class="qid" id="q-id">題 1</div>
       <div class="qtext" id="q-text">題目</div>
@@ -265,23 +300,79 @@ const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
 const y = new Date().getFullYear();
 $('#y').textContent = y;
 
+const SETTINGS_KEY = 'sanfa-guard-settings-v1';
+const REDUCED = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const FEEL = Object.freeze({
+  correct: { trauma: 0.28, stop: 55, particles: 14 },
+  streak3: { trauma: 0.38, stop: 70, particles: 22 },
+  wrong:   { trauma: 0.12, stop: 0,  particles: 4 },
+  clear:   { trauma: 0.5,  stop: 90, particles: 36 }
+});
 const state = {
   screen:'home',
   player:null,
   unlocked:1,
-  cleared:{}, // stageId -> {wrong, bestStreak}
+  cleared:{},
   totalWrong:0,
   totalCorrect:0,
   stageId:1,
-  idx:0, // 0..9 within stage
+  idx:0,
   qOrder:[],
   streak:0,
   stageWrong:0,
+  stageScore:0,
+  runScore:0,
   locked:false,
   bullets:[],
   particles:[],
-  raf:0
+  floats:[],
+  confetti:[],
+  raf:0,
+  autoSpeak:true,
+  cam:{x:0,y:0,trauma:0,decay:1.6,max:5},
+  hitStopUntil:0,
+  lastTs:0
 };
+function loadSettings(){
+  try{
+    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}');
+    if(typeof s.autoSpeak === 'boolean') state.autoSpeak = s.autoSpeak;
+  }catch(e){}
+}
+function saveSettings(){
+  try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify({autoSpeak: !!state.autoSpeak})); }catch(e){}
+}
+function syncSpeakToggles(){
+  const on = !!state.autoSpeak;
+  [['tog-auto-speak', on ? '自動讀題 · 開' : '自動讀題 · 關'],
+   ['tog-auto-speak-play', on ? '讀題 ON' : '讀題 OFF']].forEach(function(pair){
+    const el = document.getElementById(pair[0]);
+    if(!el) return;
+    el.classList.toggle('on', on);
+    el.setAttribute('aria-pressed', on ? 'true' : 'false');
+    // keep dot + label
+    const dot = el.querySelector('.dot');
+    el.textContent = '';
+    if(dot) el.appendChild(dot);
+    else {
+      const d=document.createElement('span'); d.className='dot'; el.appendChild(d);
+    }
+    el.appendChild(document.createTextNode(pair[1]));
+  });
+}
+function toggleAutoSpeak(){
+  state.autoSpeak = !state.autoSpeak;
+  saveSettings();
+  syncSpeakToggles();
+  if(state.autoSpeak){
+    toast('自動讀題 · 開');
+    if(state.screen==='play') autoSpeakQuestion();
+  } else {
+    stopSpeak();
+    toast('自動讀題 · 關（🔊仍可手動）');
+  }
+  beep(true);
+}
 
 function load(){
   try{
@@ -296,7 +387,8 @@ function save(){
     unlocked: state.unlocked,
     cleared: state.cleared,
     totalWrong: state.totalWrong,
-    totalCorrect: state.totalCorrect
+    totalCorrect: state.totalCorrect,
+    runScore: state.runScore|0
   };
   localStorage.setItem(SAVE_KEY, JSON.stringify(data));
 }
@@ -307,6 +399,7 @@ function applySave(s){
   state.cleared = s.cleared || {};
   state.totalWrong = s.totalWrong || 0;
   state.totalCorrect = s.totalCorrect || 0;
+  state.runScore = s.runScore || 0;
 }
 
 function show(id){
@@ -417,7 +510,8 @@ function questionSpeakText(){
   return parts.join('。');
 }
 function autoSpeakQuestion(){
-  // 出題自動讀（SEN 聽題）；可再撳🔊重讀
+  // 預設 ON：每題先讀一次題+答案；toggle 可關；🔊永遠可手動
+  if(!state.autoSpeak) return;
   const t = questionSpeakText();
   if(!t) return;
   setTimeout(function(){ speak(t); }, 220);
@@ -464,7 +558,7 @@ function initHome(){
   }
 }
 $('#btn-start').onclick = ()=>{
-  state.player=null; state.unlocked=1; state.cleared={}; state.totalWrong=0; state.totalCorrect=0;
+  state.player=null; state.unlocked=1; state.cleared={}; state.totalWrong=0; state.totalCorrect=0; state.runScore=0;
   renderId(); show('id');
 };
 $('#btn-continue').onclick = ()=>{
@@ -525,6 +619,101 @@ function renderMap(){
 $('#btn-map-home').onclick = ()=> show('home');
 $('#btn-map-cert').onclick = ()=> openCert();
 
+
+/* ===== FEEL (gamedev-feel SEN medium) ===== */
+function addTrauma(a){
+  if(REDUCED) return;
+  state.cam.trauma = Math.min(1, state.cam.trauma + a);
+}
+function hitStop(ms){
+  if(REDUCED || !ms) return;
+  state.hitStopUntil = Math.max(state.hitStopUntil, performance.now() + ms);
+}
+function pulseEdge(ok){
+  const el = $('#edge-flash');
+  if(!el) return;
+  el.classList.toggle('bad', !ok);
+  el.classList.add('on');
+  clearTimeout(pulseEdge._t);
+  pulseEdge._t = setTimeout(function(){ el.classList.remove('on'); }, 160);
+}
+function showCombo(n){
+  const el = $('#combo-banner');
+  if(!el) return;
+  if(n < 2){ el.classList.remove('on'); return; }
+  el.textContent = '連對 ×' + n + (n>=5 ? ' 🔥' : '');
+  el.classList.add('on');
+  clearTimeout(showCombo._t);
+  showCombo._t = setTimeout(function(){ el.classList.remove('on'); }, 700);
+}
+function floatScore(el, text){
+  const arena = $('#arena');
+  if(!arena || !el) return;
+  const ar = arena.getBoundingClientRect();
+  const tr = el.getBoundingClientRect();
+  const d = document.createElement('div');
+  d.className = 'float-score';
+  d.textContent = text;
+  d.style.left = (tr.left + tr.width/2 - ar.left) + 'px';
+  d.style.top = (tr.top + tr.height*0.2 - ar.top) + 'px';
+  arena.appendChild(d);
+  setTimeout(function(){ d.remove(); }, 850);
+}
+function updateProg(){
+  const bar = $('#prog-bar');
+  if(!bar) return;
+  bar.style.width = ((state.idx) / 10 * 100) + '%';
+}
+function updateScoreHud(){
+  const el = $('#hud-score');
+  if(el) el.textContent = '⭐ ' + (state.runScore|0);
+  const rob = $('#robot');
+  if(rob) rob.classList.toggle('power', state.streak >= 3);
+}
+function spawnConfetti(){
+  if(REDUCED) return;
+  const arena = $('#arena');
+  if(!arena) return;
+  const w = arena.clientWidth, h = arena.clientHeight;
+  for(let i=0;i<28;i++){
+    state.confetti.push({
+      x: Math.random()*w,
+      y: -10 - Math.random()*40,
+      vx: (Math.random()-0.5)*2,
+      vy: 1.5 + Math.random()*2.5,
+      rot: Math.random()*Math.PI,
+      vr: (Math.random()-0.5)*0.2,
+      life: 1,
+      c: ['#ffd34e','#3dde8c','#5b8cff','#ff8f5b','#fff'][i%5],
+      s: 4 + Math.random()*5
+    });
+  }
+}
+function juiceCorrect(el){
+  const big = state.streak >= 3;
+  const f = big ? FEEL.streak3 : FEEL.correct;
+  addTrauma(f.trauma);
+  hitStop(f.stop);
+  pulseEdge(true);
+  showCombo(state.streak);
+  const pts = 10 + Math.min(20, (state.streak-1)*5);
+  state.stageScore += pts;
+  state.runScore += pts;
+  floatScore(el, '+' + pts);
+  updateScoreHud();
+  // multi-shot juice
+  if(big){
+    for(let i=0;i<2;i++) setTimeout(function(){ shootTo(el, true, true); }, 60+i*50);
+  }
+}
+function juiceWrong(el){
+  addTrauma(FEEL.wrong.trauma);
+  pulseEdge(false);
+  showCombo(0);
+  updateScoreHud();
+}
+
+
 /* ===== PLAY ===== */
 const cv = $('#cv');
 const ctx = cv.getContext('2d');
@@ -545,9 +734,14 @@ function startStage(id){
   state.idx = 0;
   state.streak = 0;
   state.stageWrong = 0;
+  state.stageScore = 0;
   state.locked = false;
   state.bullets = [];
   state.particles = [];
+  state.confetti = [];
+  state.cam.trauma = 0; state.cam.x = 0; state.cam.y = 0;
+  state.hitStopUntil = 0;
+  updateScoreHud();
   // fixed order within stage (by id) — stable for teacher
   state.qOrder = [];
   for(let i=st.from;i<=st.to;i++) state.qOrder.push(i);
@@ -571,6 +765,8 @@ function renderQuestion(){
   $('#hud-prog').textContent = `${state.idx+1}/10`;
   $('#hud-streak').textContent = `🔥 ${state.streak}`;
   $('#hud-wrong').textContent = `錯 ${state.stageWrong}`;
+  updateProg();
+  updateScoreHud();
   const box = $('#targets');
   box.innerHTML = '';
   // keep A/B/C visual order stable for gesture; content is already A/B/C from bank
@@ -621,12 +817,13 @@ function tryAnswer(displayLetter, srcKey, el){
     state.totalCorrect += 1;
     beep(true);
     burst(el, state.streak>=3?'💥✨':'✨');
+    juiceCorrect(el);
     toast(state.streak>=3?`連對 ${state.streak}！`:'答對！');
     speak(state.streak>=3?('啱喇！連對'+state.streak):'啱喇');
     setTimeout(()=>{
       robot.classList.remove('happy');
       nextQ();
-    }, 650);
+    }, state.streak>=3 ? 780 : 650);
   }else{
     el.classList.add('flash-bad');
     robot.classList.add('shoot');
@@ -634,6 +831,7 @@ function tryAnswer(displayLetter, srcKey, el){
     state.stageWrong += 1;
     state.totalWrong += 1;
     beep(false);
+    juiceWrong(el);
     toast('再試！');
     speak('再試啦');
     $('#hud-streak').textContent = `🔥 0`;
@@ -661,14 +859,19 @@ function nextQ(){
     state.unlocked = Math.max(state.unlocked, Math.min(10, state.stageId+1));
     save();
     fanfare();
+    addTrauma(FEEL.clear.trauma);
+    hitStop(FEEL.clear.stop);
+    spawnConfetti();
+    const bar = $('#prog-bar'); if(bar) bar.style.width = '100%';
     const st = stageMeta(state.stageId);
     $('#clear-title').textContent = `${st.title} 過關！`;
     $('#clear-msg').textContent = allCleared()
-      ? `100 題完成！今關錯 ${state.stageWrong} 次`
-      : `今關錯 ${state.stageWrong} 次 · 已解鎖下一關`;
+      ? `100 題完成！今關錯 ${state.stageWrong} · ⭐${state.runScore}`
+      : `今關錯 ${state.stageWrong} · ⭐+${state.stageScore} · 已解鎖下一關`;
     speak('過關，做得好');
     $('#ov-clear').classList.add('on');
-    stopLoop();
+    // keep loop briefly for confetti then stop
+    setTimeout(function(){ if(state.screen!=='play') stopLoop(); }, 1200);
     return;
   }
   state.idx += 1;
@@ -720,34 +923,39 @@ window.addEventListener('keydown', (e)=>{
   }
 });
 
-function shootTo(el, ok){
+function shootTo(el, ok, silent){
   const arena = $('#arena');
   const ar = arena.getBoundingClientRect();
   const rr = $('#robot').getBoundingClientRect();
   const tr = el.getBoundingClientRect();
   const x0 = rr.left + rr.width/2 - ar.left;
   const y0 = rr.top + rr.height*0.2 - ar.top;
-  const x1 = tr.left + tr.width/2 - ar.left;
-  const y1 = tr.top + tr.height/2 - ar.top;
+  const x1 = tr.left + tr.width/2 - ar.left + (silent ? (Math.random()-0.5)*24 : 0);
+  const y1 = tr.top + tr.height/2 - ar.top + (silent ? (Math.random()-0.5)*16 : 0);
+  const streakBoost = Math.min(3, state.streak|0);
   state.bullets.push({
     x:x0,y:y0,x1,y1,t:0,life:1, ok,
-    color: ok ? '#ffd34e' : '#ff6b6b'
+    color: ok ? (streakBoost>=3 ? '#fff36a' : '#ffd34e') : '#ff6b6b',
+    w: ok ? 4 + streakBoost : 3
   });
-  $('#robot').classList.add('shoot');
-  setTimeout(()=>$('#robot').classList.remove('shoot'), 120);
-  const fx = $('#fx');
-  fx.style.setProperty('--x', (x1/ar.width*100)+'%');
-  fx.style.setProperty('--y', (y1/ar.height*100)+'%');
-  fx.classList.add('on');
-  setTimeout(()=>fx.classList.remove('on'), 180);
+  if(!silent){
+    $('#robot').classList.add('shoot');
+    setTimeout(()=>$('#robot').classList.remove('shoot'), 120);
+    const fx = $('#fx');
+    fx.style.setProperty('--x', (x1/ar.width*100)+'%');
+    fx.style.setProperty('--y', (y1/ar.height*100)+'%');
+    fx.classList.add('on');
+    setTimeout(()=>fx.classList.remove('on'), 180);
+  }
   if(ok){
-    for(let i=0;i<10;i++){
+    const n = silent ? 6 : (10 + Math.min(12, state.streak*2));
+    for(let i=0;i<n;i++){
       state.particles.push({
         x:x1,y:y1,
-        vx:(Math.random()-0.5)*6,
-        vy:(Math.random()-0.5)*6-2,
+        vx:(Math.random()-0.5)*7,
+        vy:(Math.random()-0.5)*7-2,
         life:1,
-        c: ['#ffd34e','#fff','#3dde8c','#5b8cff'][i%4]
+        c: ['#ffd34e','#fff','#3dde8c','#5b8cff','#ff8f5b'][i%5]
       });
     }
   }
@@ -768,8 +976,14 @@ function burst(el, emo){
 
 function startLoop(){
   stopLoop();
-  const loop = ()=>{
-    draw();
+  state.lastTs = performance.now();
+  const loop = (now)=>{
+    const dt = Math.min(0.05, (now - (state.lastTs||now)) / 1000);
+    state.lastTs = now;
+    // hit-stop: still decay cam/fx, skip bullet advance a bit
+    const frozen = now < state.hitStopUntil;
+    updateCam(dt);
+    draw(frozen ? dt*0.35 : dt);
     state.raf = requestAnimationFrame(loop);
   };
   state.raf = requestAnimationFrame(loop);
@@ -778,29 +992,57 @@ function stopLoop(){
   if(state.raf) cancelAnimationFrame(state.raf);
   state.raf = 0;
 }
+function updateCam(dt){
+  const cam = state.cam;
+  if(cam.trauma <= 0 || REDUCED){ cam.x = cam.y = 0; cam.trauma = 0; return; }
+  cam.trauma = Math.max(0, cam.trauma - cam.decay * dt);
+  const s = cam.trauma * cam.trauma;
+  const t = performance.now() * 0.03;
+  cam.x = cam.max * s * Math.sin(t * 1.7);
+  cam.y = cam.max * s * Math.sin(t * 2.3);
+  // apply soft offset to targets layer only (not hitboxes logic — DOM still clickable)
+  const tg = $('#targets');
+  if(tg) tg.style.transform = 'translate(' + cam.x.toFixed(2) + 'px,' + cam.y.toFixed(2) + 'px)';
+  const rob = $('#robot');
+  if(rob) rob.style.transform = (rob.classList.contains('shoot')?'translateY(4px) scale(0.96)': rob.classList.contains('happy')?'scale(1.08)':'') + ' translate(' + (cam.x*0.5).toFixed(2) + 'px,' + (cam.y*0.5).toFixed(2) + 'px)';
+}
 
-function draw(){
+function draw(dt){
+  dt = dt == null ? 0.016 : dt;
   const arena = $('#arena');
   const w = arena.clientWidth, h = arena.clientHeight;
   if(!w||!h) return;
   ctx.clearRect(0,0,w,h);
-  // subtle stars
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  for(let i=0;i<18;i++){
-    const x = (i*97 + (Date.now()/40)) % w;
-    const y = (i*53) % (h*0.55);
-    ctx.beginPath(); ctx.arc(x,y,1.2,0,Math.PI*2); ctx.fill();
+  ctx.save();
+  ctx.translate(state.cam.x, state.cam.y);
+  // parallax stars
+  const tnow = Date.now();
+  for(let i=0;i<28;i++){
+    const layer = (i%3)+1;
+    const x = (i*97 + tnow/(50/layer)) % w;
+    const y = (i*53 + (tnow/80)*layer*0.02) % (h*0.6);
+    ctx.globalAlpha = 0.06 * layer;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(x, y, 1.1*layer*0.5, 0, Math.PI*2); ctx.fill();
   }
+  ctx.globalAlpha = 1;
+  // theme accent orbs
+  const th = (stageMeta(state.stageId)||{}).theme || 'constitution';
+  const accent = th==='basic' ? 'rgba(91,140,255,.12)' : th==='nsl' ? 'rgba(61,222,140,.12)' : 'rgba(255,107,107,.12)';
+  ctx.fillStyle = accent;
+  ctx.beginPath(); ctx.arc(w*0.15, h*0.2, 40+Math.sin(tnow/400)*6, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(w*0.85, h*0.25, 30+Math.cos(tnow/350)*5, 0, Math.PI*2); ctx.fill();
+
   // bullets
   state.bullets = state.bullets.filter(b=>{
-    b.t += 0.12;
+    b.t += 0.14;
     const t = Math.min(1, b.t);
     const x = b.x + (b.x1-b.x)*t;
     const y = b.y + (b.y1-b.y)*t;
     ctx.strokeStyle = b.color;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = b.w || 4;
     ctx.shadowColor = b.color;
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 14;
     ctx.beginPath();
     ctx.moveTo(b.x, b.y);
     ctx.lineTo(x,y);
@@ -812,13 +1054,26 @@ function draw(){
   });
   // particles
   state.particles = state.particles.filter(p=>{
-    p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.03;
+    p.x += p.vx; p.y += p.vy; p.vy += 0.14; p.life -= 0.028;
     ctx.globalAlpha = Math.max(0,p.life);
     ctx.fillStyle = p.c;
     ctx.beginPath(); ctx.arc(p.x,p.y,3.5,0,Math.PI*2); ctx.fill();
     ctx.globalAlpha = 1;
     return p.life > 0;
   });
+  // confetti
+  state.confetti = state.confetti.filter(c=>{
+    c.x += c.vx; c.y += c.vy; c.rot += c.vr; c.life -= 0.012;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, c.life);
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.rot);
+    ctx.fillStyle = c.c;
+    ctx.fillRect(-c.s/2, -c.s/2, c.s, c.s*0.6);
+    ctx.restore();
+    return c.life > 0 && c.y < h + 20;
+  });
+  ctx.restore();
 }
 
 window.addEventListener('resize', ()=>{ if(state.screen==='play') resizeCv(); });
@@ -842,6 +1097,10 @@ $('#btn-print').onclick = ()=> window.print();
 $('#btn-cert-map').onclick = ()=>{ renderMap(); show('map'); };
 
 // boot
+loadSettings();
+syncSpeakToggles();
+const t1 = $('#tog-auto-speak'); if(t1) t1.onclick = toggleAutoSpeak;
+const t2 = $('#tog-auto-speak-play'); if(t2) t2.onclick = toggleAutoSpeak;
 initHome();
 // prevent scroll bounce
 document.addEventListener('touchmove', e=>{
